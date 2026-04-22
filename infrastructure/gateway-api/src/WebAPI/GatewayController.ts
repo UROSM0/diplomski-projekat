@@ -1,0 +1,498 @@
+import { Request, Response, Router } from "express";
+import { IGatewayService } from "../Domain/services/IGatewayService";
+import { AddFavoriteDTO } from "../Domain/DTOs/AddFavoriteDTO";
+import { CreateRatingDTO } from "../Domain/DTOs/CreateRatingDTO";
+import { CreateAdDTO } from "../Domain/DTOs/CreateAdDTO";
+import { CreateCategoryDTO } from "../Domain/DTOs/CreateCategoryDTO";
+import { GetAdsQueryDTO } from "../Domain/DTOs/GetAdsQueryDTO";
+import { LoginUserDTO } from "../Domain/DTOs/LoginUserDTO";
+import { RegistrationUserDTO } from "../Domain/DTOs/RegistrationUserDTO";
+import { PurchaseTransactionDTO } from "../Domain/DTOs/PurchaseTransactionDTO";
+import { RefreshTokenDTO } from "../Domain/DTOs/RefreshTokenDTO";
+import { ChangePasswordDTO } from "../Domain/DTOs/ChangePasswordDTO";
+import { TopUpBalanceDTO } from "../Domain/DTOs/TopUpBalanceDTO";
+import { ModerateAdDTO } from "../Domain/DTOs/ModerateAdDTO";
+import { UpdateUserAccessDTO } from "../Domain/DTOs/UpdateUserAccessDTO";
+import { UpdateAdDTO } from "../Domain/DTOs/UpdateAdDTO";
+import { UpdateUserProfileDTO } from "../Domain/DTOs/UpdateUserProfileDTO";
+import { authenticate } from "../Middlewares/authentification/AuthMiddleware";
+import { authorize } from "../Middlewares/authorization/AuthorizeMiddleware";
+
+export class GatewayController {
+  private readonly router: Router;
+
+  constructor(private readonly gatewayService: IGatewayService) {
+    this.router = Router();
+    this.initializeRoutes();
+  }
+
+  private initializeRoutes(): void {
+    // Auth
+    this.router.post("/login", this.login.bind(this));
+    this.router.post("/register", this.register.bind(this));
+    this.router.post("/refresh", this.refresh.bind(this));
+    this.router.post("/logout", this.logout.bind(this));
+
+    // Users
+    this.router.get("/users", authenticate, authorize("admin"), this.getAllUsers.bind(this));
+    this.router.get("/users/me", authenticate, authorize("admin", "manager", "user"), this.getCurrentUser.bind(this));
+    this.router.patch("/users/me", authenticate, authorize("admin", "manager", "user"), this.updateCurrentUser.bind(this));
+    this.router.post("/users/me/change-password", authenticate, authorize("admin", "manager", "user"), this.changeCurrentUserPassword.bind(this));
+    this.router.post("/users/me/top-up", authenticate, authorize("admin", "manager", "user"), this.topUpCurrentUser.bind(this));
+    this.router.get("/users/me/favorites", authenticate, authorize("admin", "manager", "user"), this.getCurrentUserFavorites.bind(this));
+    this.router.post("/users/me/favorites", authenticate, authorize("admin", "manager", "user"), this.addCurrentUserFavorite.bind(this));
+    this.router.delete("/users/me/favorites/:adId", authenticate, authorize("admin", "manager", "user"), this.removeCurrentUserFavorite.bind(this));
+    this.router.get("/users/:id", authenticate, authorize("admin", "manager", "user"), this.getUserById.bind(this));
+    this.router.patch("/users/:id/access", authenticate, authorize("admin"), this.updateUserAccess.bind(this));
+
+    // Categories
+    this.router.get("/categories", this.getCategories.bind(this));
+    this.router.post("/categories", authenticate, authorize("admin"), this.createCategory.bind(this));
+
+    // Ads
+    this.router.get("/ads", this.getPublicAds.bind(this));
+    this.router.get("/ads/review", authenticate, authorize("admin", "manager"), this.getAdsForModeration.bind(this));
+    this.router.get("/ads/me", authenticate, authorize("admin", "manager", "user"), this.getMyAds.bind(this));
+    this.router.get("/ads/:id", this.getPublicAdById.bind(this));
+    this.router.post("/ads", authenticate, authorize("admin", "manager", "user"), this.createAd.bind(this));
+    this.router.patch("/ads/:id", authenticate, authorize("admin", "manager", "user"), this.updateAd.bind(this));
+    this.router.delete("/ads/:id", authenticate, authorize("admin", "manager", "user"), this.deleteAd.bind(this));
+    this.router.patch("/ads/:id/moderation", authenticate, authorize("admin", "manager"), this.moderateAd.bind(this));
+
+    // Transactions
+    this.router.post("/transactions/purchase", authenticate, authorize("admin", "manager", "user"), this.purchaseAd.bind(this));
+    this.router.get("/transactions/me/purchases", authenticate, authorize("admin", "manager", "user"), this.getMyPurchases.bind(this));
+    this.router.get("/transactions/me/sales", authenticate, authorize("admin", "manager", "user"), this.getMySales.bind(this));
+    this.router.post("/transactions/:id/rating", authenticate, authorize("admin", "manager", "user"), this.rateTransaction.bind(this));
+  }
+
+  // Auth
+  private async login(req: Request, res: Response): Promise<void> {
+    const data: LoginUserDTO = req.body;
+    const result = await this.gatewayService.login(data);
+    res.status(result.success ? 200 : 401).json(result);
+  }
+
+  private async register(req: Request, res: Response): Promise<void> {
+    const data: RegistrationUserDTO = req.body;
+    const result = await this.gatewayService.register(data);
+    res.status(result.success ? 201 : 400).json(result);
+  }
+
+  private async refresh(req: Request, res: Response): Promise<void> {
+    const data: RefreshTokenDTO = req.body;
+    const result = await this.gatewayService.refresh(data);
+    res.status(result.success ? 200 : 401).json(result);
+  }
+
+  private async logout(req: Request, res: Response): Promise<void> {
+    const data: RefreshTokenDTO = req.body;
+    const result = await this.gatewayService.logout(data);
+    res.status(result.success ? 200 : 400).json(result);
+  }
+
+  // Users
+  private async getAllUsers(req: Request, res: Response): Promise<void> {
+    try {
+      const users = await this.gatewayService.getAllUsers();
+      res.status(200).json(users);
+    } catch (err) {
+      res.status(500).json({ message: (err as Error).message });
+    }
+  }
+
+  private async getCurrentUser(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ message: "Unauthorized." });
+        return;
+      }
+
+      const user = await this.gatewayService.getUserById(req.user.id);
+      res.status(200).json(user);
+    } catch (err) {
+      res.status(404).json({ message: (err as Error).message });
+    }
+  }
+
+  private async getUserById(req: Request, res: Response): Promise<void> {
+    try {
+      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+      if (!id || !req.user) {
+        res.status(401).json({ message: "Unauthorized." });
+        return;
+      }
+
+      if (req.user.role.toLowerCase() !== "admin" && req.user.id !== id) {
+        res.status(401).json({ message: "You can only access your own data!" });
+        return;
+      }
+
+      const user = await this.gatewayService.getUserById(id);
+      res.status(200).json(user);
+    } catch (err) {
+      res.status(404).json({ message: (err as Error).message });
+    }
+  }
+
+  private async updateCurrentUser(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ message: "Unauthorized." });
+        return;
+      }
+
+      const data = req.body as UpdateUserProfileDTO;
+      const user = await this.gatewayService.updateUserProfile(req.user.id, data);
+      res.status(200).json(user);
+    } catch (err) {
+      res.status(400).json({ message: (err as Error).message });
+    }
+  }
+
+  private async changeCurrentUserPassword(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ message: "Unauthorized." });
+        return;
+      }
+
+      const data = req.body as ChangePasswordDTO;
+      const result = await this.gatewayService.changePassword(req.user.id, data);
+      res.status(result.success ? 200 : 400).json(result);
+    } catch (err) {
+      res.status(400).json({ message: (err as Error).message });
+    }
+  }
+
+  private async topUpCurrentUser(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ message: "Unauthorized." });
+        return;
+      }
+
+      const data = req.body as TopUpBalanceDTO;
+      const user = await this.gatewayService.topUpBalance(req.user.id, data);
+      res.status(200).json(user);
+    } catch (err) {
+      res.status(400).json({ message: (err as Error).message });
+    }
+  }
+
+  private async getCurrentUserFavorites(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ message: "Unauthorized." });
+        return;
+      }
+
+      const favorites = await this.gatewayService.getFavorites(req.user.id);
+      res.status(200).json(favorites);
+    } catch (err) {
+      res.status(400).json({ message: (err as Error).message });
+    }
+  }
+
+  private async addCurrentUserFavorite(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ message: "Unauthorized." });
+        return;
+      }
+
+      const data = req.body as AddFavoriteDTO;
+      const favorite = await this.gatewayService.addFavorite(req.user.id, data);
+      res.status(201).json(favorite);
+    } catch (err) {
+      res.status(400).json({ message: (err as Error).message });
+    }
+  }
+
+  private async removeCurrentUserFavorite(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ message: "Unauthorized." });
+        return;
+      }
+
+      const adId = this.getSingleValue(req.params.adId);
+      if (!adId) {
+        res.status(400).json({ message: "Invalid ad id." });
+        return;
+      }
+
+      await this.gatewayService.removeFavorite(req.user.id, adId);
+      res.status(204).send();
+    } catch (err) {
+      res.status(400).json({ message: (err as Error).message });
+    }
+  }
+
+  private async updateUserAccess(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ message: "Unauthorized." });
+        return;
+      }
+
+      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      if (!id?.trim()) {
+        res.status(400).json({ message: "Invalid user id." });
+        return;
+      }
+
+      if (req.user.id === id) {
+        res.status(400).json({ message: "You cannot change your own role or status." });
+        return;
+      }
+
+      const data = req.body as UpdateUserAccessDTO;
+      const user = await this.gatewayService.updateUserAccess(id, data);
+      res.status(200).json(user);
+    } catch (err) {
+      res.status(400).json({ message: (err as Error).message });
+    }
+  }
+
+  private async getCategories(req: Request, res: Response): Promise<void> {
+    try {
+      const categories = await this.gatewayService.getCategories();
+      res.status(200).json(categories);
+    } catch (err) {
+      res.status(500).json({ message: (err as Error).message });
+    }
+  }
+
+  private async createCategory(req: Request, res: Response): Promise<void> {
+    try {
+      const data = req.body as CreateCategoryDTO;
+      const category = await this.gatewayService.createCategory(data);
+      res.status(201).json(category);
+    } catch (err) {
+      res.status(400).json({ message: (err as Error).message });
+    }
+  }
+
+  private async getPublicAds(req: Request, res: Response): Promise<void> {
+    try {
+      const query = this.toAdsQueryDTO(req);
+      const ads = await this.gatewayService.getPublicAds(query);
+      res.status(200).json(ads);
+    } catch (err) {
+      res.status(400).json({ message: (err as Error).message });
+    }
+  }
+
+  private async getAdsForModeration(req: Request, res: Response): Promise<void> {
+    try {
+      const query = this.toAdsQueryDTO(req);
+      const ads = await this.gatewayService.getAdsForModeration(query);
+      res.status(200).json(ads);
+    } catch (err) {
+      res.status(400).json({ message: (err as Error).message });
+    }
+  }
+
+  private async getPublicAdById(req: Request, res: Response): Promise<void> {
+    try {
+      const id = this.getSingleValue(req.params.id);
+      if (!id) {
+        res.status(400).json({ message: "Invalid ad id." });
+        return;
+      }
+
+      const ad = await this.gatewayService.getPublicAdById(id);
+      res.status(200).json(ad);
+    } catch (err) {
+      res.status(404).json({ message: (err as Error).message });
+    }
+  }
+
+  private async getMyAds(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ message: "Unauthorized." });
+        return;
+      }
+
+      const query = this.toAdsQueryDTO(req);
+      const ads = await this.gatewayService.getMyAds(req.user.id, query);
+      res.status(200).json(ads);
+    } catch (err) {
+      res.status(400).json({ message: (err as Error).message });
+    }
+  }
+
+  private async createAd(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ message: "Unauthorized." });
+        return;
+      }
+
+      const data = req.body as CreateAdDTO;
+      const ad = await this.gatewayService.createAd(req.user.id, data);
+      res.status(201).json(ad);
+    } catch (err) {
+      res.status(400).json({ message: (err as Error).message });
+    }
+  }
+
+  private async updateAd(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ message: "Unauthorized." });
+        return;
+      }
+
+      const id = this.getSingleValue(req.params.id);
+      if (!id) {
+        res.status(400).json({ message: "Invalid ad id." });
+        return;
+      }
+
+      const data = req.body as UpdateAdDTO;
+      const ad = await this.gatewayService.updateAd(id, req.user.id, data);
+      res.status(200).json(ad);
+    } catch (err) {
+      res.status(400).json({ message: (err as Error).message });
+    }
+  }
+
+  private async deleteAd(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ message: "Unauthorized." });
+        return;
+      }
+
+      const id = this.getSingleValue(req.params.id);
+      if (!id) {
+        res.status(400).json({ message: "Invalid ad id." });
+        return;
+      }
+
+      await this.gatewayService.deleteAd(id, req.user.id);
+      res.status(204).send();
+    } catch (err) {
+      res.status(400).json({ message: (err as Error).message });
+    }
+  }
+
+  private async moderateAd(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ message: "Unauthorized." });
+        return;
+      }
+
+      const id = this.getSingleValue(req.params.id);
+      if (!id) {
+        res.status(400).json({ message: "Invalid ad id." });
+        return;
+      }
+
+      const data = req.body as ModerateAdDTO;
+      const ad = await this.gatewayService.moderateAd(id, req.user.id, data);
+      res.status(200).json(ad);
+    } catch (err) {
+      res.status(400).json({ message: (err as Error).message });
+    }
+  }
+
+  private async purchaseAd(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ message: "Unauthorized." });
+        return;
+      }
+
+      const data = req.body as PurchaseTransactionDTO;
+      const transaction = await this.gatewayService.purchaseAd(req.user.id, data);
+      res.status(201).json(transaction);
+    } catch (err) {
+      res.status(400).json({ message: (err as Error).message });
+    }
+  }
+
+  private async getMyPurchases(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ message: "Unauthorized." });
+        return;
+      }
+
+      const transactions = await this.gatewayService.getPurchases(req.user.id);
+      res.status(200).json(transactions);
+    } catch (err) {
+      res.status(400).json({ message: (err as Error).message });
+    }
+  }
+
+  private async getMySales(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ message: "Unauthorized." });
+        return;
+      }
+
+      const transactions = await this.gatewayService.getSales(req.user.id);
+      res.status(200).json(transactions);
+    } catch (err) {
+      res.status(400).json({ message: (err as Error).message });
+    }
+  }
+
+  private async rateTransaction(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ message: "Unauthorized." });
+        return;
+      }
+
+      const id = this.getSingleValue(req.params.id);
+      if (!id) {
+        res.status(400).json({ message: "Invalid transaction id." });
+        return;
+      }
+
+      const data = req.body as CreateRatingDTO;
+      const transaction = await this.gatewayService.rateTransaction(id, req.user.id, data);
+      res.status(200).json(transaction);
+    } catch (err) {
+      res.status(400).json({ message: (err as Error).message });
+    }
+  }
+
+  private toAdsQueryDTO(req: Request): GetAdsQueryDTO {
+    return {
+      page: this.toNumber(req.query.page),
+      limit: this.toNumber(req.query.limit),
+      search: this.getSingleValue(req.query.search),
+      categoryId: this.getSingleValue(req.query.categoryId),
+      status: this.getSingleValue(req.query.status),
+    };
+  }
+
+  private getSingleValue(value: unknown): string | undefined {
+    if (Array.isArray(value)) {
+      return typeof value[0] === "string" ? value[0] : undefined;
+    }
+
+    return typeof value === "string" ? value : undefined;
+  }
+
+  private toNumber(value: unknown): number | undefined {
+    const normalized = this.getSingleValue(value);
+    if (!normalized) return undefined;
+
+    const parsed = Number(normalized);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+
+  public getRouter(): Router {
+    return this.router;
+  }
+}

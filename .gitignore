@@ -1,0 +1,17 @@
+# Workspace temp
+.codex_tmp_spec/
+.git_old/
+
+# Dependencies
+**/node_modules/
+
+# Build outputs
+**/dist/
+**/dist-electron/
+**/release/
+**/coverage/
+*.tsbuildinfo
+
+# Environment files
+**/.env
+**/.env.*

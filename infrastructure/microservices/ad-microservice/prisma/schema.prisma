@@ -1,0 +1,59 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AdStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SOLD
+}
+
+model Category {
+  id          String   @id @default(uuid())
+  name        String   @unique
+  description String?
+  createdAt   DateTime @default(now())
+  ads         Ad[]
+
+  @@map("categories")
+}
+
+model Ad {
+  id             String    @id @default(uuid())
+  title          String
+  description    String
+  price          Decimal   @db.Decimal(12, 2)
+  sellerId       String
+  categoryId     String
+  status         AdStatus  @default(PENDING)
+  moderationNote String?
+  moderatedById  String?
+  moderatedAt    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+  category       Category  @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  images         AdImage[]
+
+  @@index([sellerId])
+  @@index([categoryId])
+  @@index([status, createdAt])
+  @@map("ads")
+}
+
+model AdImage {
+  id           String   @id @default(uuid())
+  adId         String
+  imageUrl     String
+  displayOrder Int      @default(0)
+  createdAt    DateTime @default(now())
+  ad           Ad       @relation(fields: [adId], references: [id], onDelete: Cascade)
+
+  @@index([adId])
+  @@map("ad_images")
+}
