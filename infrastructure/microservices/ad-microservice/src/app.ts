@@ -1,6 +1,7 @@
 import cors from "cors";
 import dotenv from "dotenv";
 import express from "express";
+import { getUploadsRootDirectory } from "./WebAPI/uploads/AdImageUpload";
 import prisma from "./Prisma/client";
 import { IAdsService } from "./Domain/services/IAdsService";
 import { ILogerService } from "./Domain/services/ILogerService";
@@ -29,6 +30,7 @@ app.use(
 );
 
 app.use(express.json({ limit: "15mb" }));
+app.use("/uploads", express.static(getUploadsRootDirectory()));
 
 const adsService: IAdsService = new AdsService(prisma);
 const loggerService: ILogerService = new LogerService();

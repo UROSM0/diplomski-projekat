@@ -1,4 +1,5 @@
 import axios, { AxiosInstance } from "axios";
+import FormData from "form-data";
 import { IGatewayService } from "../Domain/services/IGatewayService";
 import { AddFavoriteDTO } from "../Domain/DTOs/AddFavoriteDTO";
 import { LoginUserDTO } from "../Domain/DTOs/LoginUserDTO";
@@ -22,6 +23,9 @@ import { UpdateUserProfileDTO } from "../Domain/DTOs/UpdateUserProfileDTO";
 import { AuthResponseType } from "../Domain/types/AuthResponse";
 import { UserDTO } from "../Domain/DTOs/UserDTO";
 import { FavoriteDTO } from "../Domain/DTOs/FavoriteDTO";
+import { CreateNotificationDTO } from "../Domain/DTOs/CreateNotificationDTO";
+import { GetNotificationsQueryDTO } from "../Domain/DTOs/GetNotificationsQueryDTO";
+import { NotificationDTO } from "../Domain/DTOs/NotificationDTO";
 import { ConversationDTO } from "../Domain/DTOs/ConversationDTO";
 import { CreateConversationDTO } from "../Domain/DTOs/CreateConversationDTO";
 import { CreateMessageDTO } from "../Domain/DTOs/CreateMessageDTO";
@@ -212,6 +216,24 @@ export class GatewayService implements IGatewayService {
     });
   }
 
+  async getNotifications(userId: string, query: GetNotificationsQueryDTO): Promise<NotificationDTO[]> {
+    const response = await this.userClient.get<NotificationDTO[]>(`/users/${userId}/notifications`, {
+      params: query,
+    });
+    return response.data;
+  }
+
+  async markNotificationAsRead(userId: string, notificationId: string): Promise<NotificationDTO> {
+    const response = await this.userClient.patch<NotificationDTO>(
+      `/users/${userId}/notifications/${notificationId}/read`
+    );
+    return response.data;
+  }
+
+  async markAllNotificationsAsRead(userId: string): Promise<void> {
+    await this.userClient.post(`/users/${userId}/notifications/mark-all-read`);
+  }
+
   async updateUserAccess(id: string, data: UpdateUserAccessDTO): Promise<UserDTO> {
     const currentUserResponse = await this.userClient.get<UserDTO>(`/users/${id}`);
     const currentUser = currentUserResponse.data;
@@ -308,10 +330,16 @@ export class GatewayService implements IGatewayService {
     return response.data;
   }
 
-  async createAd(userId: string, data: CreateAdDTO): Promise<AdDTO> {
-    const response = await this.adClient.post<AdDTO>("/ads", {
-      ...data,
-      sellerId: userId,
+  async createAd(userId: string, data: CreateAdDTO, files: Express.Multer.File[]): Promise<AdDTO> {
+    const formData = this.buildAdFormData(
+      {
+        ...data,
+        sellerId: userId,
+      },
+      files
+    );
+    const response = await this.adClient.post<AdDTO>("/ads", formData, {
+      headers: formData.getHeaders(),
     });
     await this.logAudit({
       userId,
@@ -323,10 +351,16 @@ export class GatewayService implements IGatewayService {
     return response.data;
   }
 
-  async updateAd(adId: string, userId: string, data: UpdateAdDTO): Promise<AdDTO> {
-    const response = await this.adClient.patch<AdDTO>(`/ads/${adId}`, {
-      ...data,
-      sellerId: userId,
+  async updateAd(adId: string, userId: string, data: UpdateAdDTO, files: Express.Multer.File[]): Promise<AdDTO> {
+    const formData = this.buildAdFormData(
+      {
+        ...data,
+        sellerId: userId,
+      },
+      files
+    );
+    const response = await this.adClient.patch<AdDTO>(`/ads/${adId}`, formData, {
+      headers: formData.getHeaders(),
     });
     await this.logAudit({
       userId,
@@ -365,6 +399,14 @@ export class GatewayService implements IGatewayService {
       description: `Moderator changed moderation status for ad ${adId} to ${data.status}.`,
       metadata: { adId, status: data.status, moderationNote: data.moderationNote },
     });
+    const isApproved = data.status?.toUpperCase() === "APPROVED";
+    await this.createNotification(response.data.sellerId, {
+      type: isApproved ? "AD_APPROVED" : "AD_REJECTED",
+      title: isApproved ? "Ad approved" : "Ad rejected",
+      content: isApproved
+        ? `Your ad "${response.data.title}" has been approved and is now visible.`
+        : `Your ad "${response.data.title}" was rejected.${data.moderationNote ? ` Note: ${data.moderationNote}` : ""}`,
+    });
     return response.data;
   }
 
@@ -379,6 +421,16 @@ export class GatewayService implements IGatewayService {
       service: "gateway/transaction",
       description: `User purchased ad ${data.adId}.`,
       metadata: { adId: data.adId, transactionId: response.data.id },
+    });
+    await this.createNotification(buyerId, {
+      type: "PURCHASE_SUCCESS",
+      title: "Purchase completed",
+      content: `You purchased "${response.data.adTitle}" for ${response.data.amount.toFixed(2)} RSD.`,
+    });
+    await this.createNotification(response.data.sellerId, {
+      type: "PURCHASE_SUCCESS",
+      title: "Ad sold",
+      content: `Your ad "${response.data.adTitle}" has been sold for ${response.data.amount.toFixed(2)} RSD.`,
     });
     return response.data;
   }
@@ -404,6 +456,11 @@ export class GatewayService implements IGatewayService {
       service: "gateway/transaction",
       description: `User rated transaction ${transactionId}.`,
       metadata: { transactionId, score: data.score },
+    });
+    await this.createNotification(response.data.sellerId, {
+      type: "NEW_RATING",
+      title: "New rating received",
+      content: `You received a rating of ${data.score}/5 for "${response.data.adTitle}".`,
     });
     return response.data;
   }
@@ -440,12 +497,20 @@ export class GatewayService implements IGatewayService {
       ...data,
       senderId: userId,
     });
+    const conversation = await this.getConversationByIdInternal(conversationId, userId);
+    const recipientId =
+      conversation.participantOneId === userId ? conversation.participantTwoId : conversation.participantOneId;
     await this.logAudit({
       userId,
       action: "send_message",
       service: "gateway/chat",
       description: `User sent a message in conversation ${conversationId}.`,
       metadata: { conversationId, messageId: response.data.id },
+    });
+    await this.createNotification(recipientId, {
+      type: "NEW_MESSAGE",
+      title: "New chat message",
+      content: `You have a new message about "${conversation.adTitle}".`,
     });
     return response.data;
   }
@@ -467,6 +532,45 @@ export class GatewayService implements IGatewayService {
     } catch {
       // Audit must not break the user-facing operation.
     }
+  }
+
+  private async createNotification(userId: string, data: CreateNotificationDTO): Promise<void> {
+    try {
+      await this.userClient.post(`/users/${userId}/notifications`, data);
+    } catch {
+      // Notifications must not break the user-facing operation.
+    }
+  }
+
+  private async getConversationByIdInternal(conversationId: string, userId: string): Promise<ConversationDTO> {
+    const response = await this.chatClient.get<ConversationDTO>(`/conversations/${conversationId}`, {
+      params: { userId },
+    });
+    return response.data;
+  }
+
+  private buildAdFormData(
+    data: (CreateAdDTO | UpdateAdDTO) & { sellerId: string },
+    files: Express.Multer.File[]
+  ): FormData {
+    const formData = new FormData();
+
+    Object.entries(data).forEach(([key, value]) => {
+      if (value === undefined || value === null) {
+        return;
+      }
+
+      formData.append(key, String(value));
+    });
+
+    files.forEach((file) => {
+      formData.append("images", file.buffer, {
+        filename: file.originalname,
+        contentType: file.mimetype,
+      });
+    });
+
+    return formData;
   }
 
   private handleAuthError(error: unknown, fallbackMessage: string): AuthResponseType {

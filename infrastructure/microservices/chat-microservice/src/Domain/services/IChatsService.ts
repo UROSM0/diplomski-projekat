@@ -5,6 +5,7 @@ import { MessageDTO } from "../DTOs/MessageDTO";
 
 export interface IChatsService {
   createOrGetConversation(data: CreateConversationDTO): Promise<ConversationDTO>;
+  getConversationById(conversationId: string, userId: string): Promise<ConversationDTO>;
   getConversations(userId: string): Promise<ConversationDTO[]>;
   getMessages(conversationId: string, userId: string): Promise<MessageDTO[]>;
   sendMessage(conversationId: string, data: CreateMessageDTO): Promise<MessageDTO>;

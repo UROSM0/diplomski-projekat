@@ -1,3 +1,5 @@
+import fs from "fs";
+import path from "path";
 import { PrismaClient } from "@prisma/client";
 import { AdDTO } from "../Domain/DTOs/AdDTO";
 import { CategoryDTO } from "../Domain/DTOs/CategoryDTO";
@@ -179,7 +181,7 @@ export class AdsService implements IAdsService {
         moderationNote: null,
         moderatedById: null,
         moderatedAt: null,
-        ...(data.imageUrls
+        ...(data.imageUrls || data.removeExistingImages
           ? {
               images: {
                 deleteMany: {},
@@ -191,15 +193,21 @@ export class AdsService implements IAdsService {
       include: this.adInclude,
     });
 
+    if (data.imageUrls || data.removeExistingImages) {
+      await this.deleteStoredImages(existingAd.images.map((image) => image.imageUrl));
+    }
+
     return this.toAdDTO(updatedAd);
   }
 
   async deleteAd(adId: string, sellerId: string): Promise<void> {
-    await this.getOwnedAdOrThrow(adId, sellerId, "delete");
+    const ad = await this.getOwnedAdOrThrow(adId, sellerId, "delete");
 
     await this.prisma.ad.delete({
       where: { id: adId },
     });
+
+    await this.deleteStoredImages(ad.images.map((image) => image.imageUrl));
   }
 
   async moderateAd(adId: string, data: ModerateAdDTO): Promise<AdDTO> {
@@ -387,6 +395,36 @@ export class AdsService implements IAdsService {
       }));
   }
 
+  private toPublicImageUrl(imageUrl: string): string {
+    if (!imageUrl.startsWith("/")) {
+      return imageUrl;
+    }
+
+    const publicBaseUrl = (process.env.PUBLIC_BASE_URL ?? `http://localhost:${process.env.PORT ?? "6854"}`).replace(
+      /\/$/,
+      ""
+    );
+
+    return `${publicBaseUrl}${imageUrl}`;
+  }
+
+  private async deleteStoredImages(imageUrls: string[]): Promise<void> {
+    const storedImagePaths = imageUrls
+      .filter((imageUrl) => imageUrl.startsWith("/uploads/"))
+      .map((imageUrl) => imageUrl.replace(/^\/+/, ""))
+      .map((relativePath) => path.resolve(process.cwd(), relativePath));
+
+    await Promise.all(
+      storedImagePaths.map(async (fullPath) => {
+        try {
+          await fs.promises.unlink(fullPath);
+        } catch {
+          // Best-effort cleanup for local upload files.
+        }
+      })
+    );
+  }
+
   private toCategoryDTO(category: { id: string; name: string; description: string | null }): CategoryDTO {
     return {
       id: category.id,
@@ -409,7 +447,7 @@ export class AdsService implements IAdsService {
       moderatedAt: ad.moderatedAt?.toISOString() ?? "",
       createdAt: ad.createdAt.toISOString(),
       updatedAt: ad.updatedAt.toISOString(),
-      imageUrls: ad.images.map((image) => image.imageUrl),
+      imageUrls: ad.images.map((image) => this.toPublicImageUrl(image.imageUrl)),
       category: ad.category ? this.toCategoryDTO(ad.category) : null,
     };
   }

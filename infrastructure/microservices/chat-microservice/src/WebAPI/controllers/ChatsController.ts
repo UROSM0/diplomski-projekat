@@ -17,6 +17,7 @@ export class ChatsController {
 
   private initializeRoutes(): void {
     this.router.post("/conversations", this.createOrGetConversation.bind(this));
+    this.router.get("/conversations/:id", this.getConversationById.bind(this));
     this.router.get("/users/:userId/conversations", this.getConversations.bind(this));
     this.router.get("/conversations/:id/messages", this.getMessages.bind(this));
     this.router.post("/conversations/:id/messages", this.sendMessage.bind(this));
@@ -43,6 +44,23 @@ export class ChatsController {
 
       const conversations = await this.chatsService.getConversations(userId);
       res.status(200).json(conversations);
+    } catch (err) {
+      this.logger.log((err as Error).message);
+      res.status(400).json({ message: (err as Error).message });
+    }
+  }
+
+  private async getConversationById(req: Request, res: Response): Promise<void> {
+    try {
+      const id = this.getSingleValue(req.params.id);
+      const userId = this.getSingleValue(req.query.userId);
+      if (!id || !userId) {
+        res.status(400).json({ message: "Conversation id and user id are required." });
+        return;
+      }
+
+      const conversation = await this.chatsService.getConversationById(id, userId);
+      res.status(200).json(conversation);
     } catch (err) {
       this.logger.log((err as Error).message);
       res.status(400).json({ message: (err as Error).message });

@@ -3,5 +3,5 @@ export interface CreateAdDTO {
   description: string;
   price: number;
   categoryId: string;
-  imageUrls?: string[];
+  images?: File[];
 }

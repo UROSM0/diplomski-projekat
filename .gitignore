@@ -9,6 +9,7 @@
 **/dist/
 **/dist-electron/
 **/release/
+infrastructure/microservices/ad-microservice/uploads/
 **/coverage/
 *.tsbuildinfo
 

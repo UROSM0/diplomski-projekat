@@ -64,17 +64,25 @@ export class AdAPI implements IAdAPI {
   }
 
   async createAd(token: string, data: CreateAdDTO): Promise<AdDTO> {
+    const formData = this.buildAdFormData(data);
     return (
-      await this.axiosInstance.post<AdDTO>("/ads", data, {
-        headers: { Authorization: `Bearer ${token}` },
+      await this.axiosInstance.post<AdDTO>("/ads", formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
       })
     ).data;
   }
 
   async updateAd(token: string, adId: string, data: UpdateAdDTO): Promise<AdDTO> {
+    const formData = this.buildAdFormData(data);
     return (
-      await this.axiosInstance.patch<AdDTO>(`/ads/${adId}`, data, {
-        headers: { Authorization: `Bearer ${token}` },
+      await this.axiosInstance.patch<AdDTO>(`/ads/${adId}`, formData, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "multipart/form-data",
+        },
       })
     ).data;
   }
@@ -91,5 +99,23 @@ export class AdAPI implements IAdAPI {
         headers: { Authorization: `Bearer ${token}` },
       })
     ).data;
+  }
+
+  private buildAdFormData(data: CreateAdDTO | UpdateAdDTO): FormData {
+    const formData = new FormData();
+
+    Object.entries(data).forEach(([key, value]) => {
+      if (key === "images" || value === undefined || value === null) {
+        return;
+      }
+
+      formData.append(key, String(value));
+    });
+
+    data.images?.forEach((image) => {
+      formData.append("images", image);
+    });
+
+    return formData;
   }
 }

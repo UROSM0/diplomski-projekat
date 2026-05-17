@@ -6,7 +6,7 @@ import { UserDTO } from "../../../models/users/UserDTO";
 
 type DashboardNavbarProps = {
   userAPI: IUserAPI;
-  activePage?: "dashboard" | "marketplace" | "chat";
+  activePage?: "dashboard" | "marketplace" | "chat" | "notifications";
 };
 
 export const DashboardNavbar: React.FC<DashboardNavbarProps> = ({
@@ -15,6 +15,7 @@ export const DashboardNavbar: React.FC<DashboardNavbarProps> = ({
 }) => {
   const { user: authUser, logout, token } = useAuth();
   const [user, setUser] = useState<UserDTO | null>(null);
+  const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
 
@@ -34,6 +35,29 @@ export const DashboardNavbar: React.FC<DashboardNavbarProps> = ({
 
     fetchUser();
   }, [authUser, token, userAPI]);
+
+  useEffect(() => {
+    const loadUnreadNotifications = async () => {
+      if (!token) {
+        setUnreadNotificationsCount(0);
+        return;
+      }
+
+      try {
+        const notifications = await userAPI.getNotifications(token, { unreadOnly: true });
+        setUnreadNotificationsCount(notifications.length);
+      } catch (error) {
+        console.error("Failed to fetch notifications:", error);
+      }
+    };
+
+    void loadUnreadNotifications();
+    const interval = window.setInterval(() => {
+      void loadUnreadNotifications();
+    }, 10000);
+
+    return () => window.clearInterval(interval);
+  }, [token, userAPI]);
 
   const handleLogout = () => {
     void logout();
@@ -67,6 +91,33 @@ export const DashboardNavbar: React.FC<DashboardNavbarProps> = ({
           style={{ padding: "8px 14px" }}
         >
           Chat
+        </button>
+        <button
+          className={activePage === "notifications" ? "btn btn-accent" : "btn btn-ghost"}
+          onClick={() => navigate("/notifications")}
+          style={{ padding: "8px 14px", position: "relative" }}
+        >
+          Notifications
+          {unreadNotificationsCount > 0 ? (
+            <span
+              style={{
+                marginLeft: "8px",
+                minWidth: "22px",
+                height: "22px",
+                borderRadius: "999px",
+                background: activePage === "notifications" ? "rgba(0, 0, 0, 0.18)" : "var(--win11-accent)",
+                color: "#000",
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontSize: "11px",
+                fontWeight: 700,
+                padding: "0 6px",
+              }}
+            >
+              {unreadNotificationsCount > 99 ? "99+" : unreadNotificationsCount}
+            </span>
+          ) : null}
         </button>
       </div>
 

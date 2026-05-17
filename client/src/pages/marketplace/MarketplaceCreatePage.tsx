@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { IAdAPI } from "../../api/ads/IAdAPI";
 import { useAuth } from "../../hooks/useAuthHook";
 import { AdDTO } from "../../models/ads/AdDTO";
@@ -16,38 +16,32 @@ const INITIAL_CREATE_FORM = {
   description: "",
   price: "0",
   categoryId: "",
-  imageUrlsInput: "",
+  imageFiles: [] as File[],
+  imagePreviewUrls: [] as string[],
 };
 
 type CreateAdFormState = typeof INITIAL_CREATE_FORM;
-
-const readFilesAsDataUrls = async (files: FileList | null): Promise<string[]> => {
-  if (!files?.length) {
-    return [];
-  }
-
-  return Promise.all(
-    Array.from(files).map(
-      (file) =>
-        new Promise<string>((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(typeof reader.result === "string" ? reader.result : "");
-          reader.onerror = () => reject(new Error("Failed to read image file."));
-          reader.readAsDataURL(file);
-        })
-    )
-  );
+type EditAdFormState = {
+  title: string;
+  description: string;
+  price: string;
+  categoryId: string;
+  imageFiles: File[];
+  imagePreviewUrls: string[];
+  removeExistingImages: boolean;
 };
 
-const parseImageUrls = (value: string): string[] =>
-  value
-    .split("\n")
-    .map((item) => item.trim())
-    .filter((item) => item.length > 0);
+const createPreviewUrls = (files: File[]): string[] => files.map((file) => URL.createObjectURL(file));
+
+const revokePreviewUrls = (previewUrls: string[]): void => {
+  previewUrls.forEach((previewUrl) => URL.revokeObjectURL(previewUrl));
+};
 
 export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ adAPI }) => {
   const { token, user } = useAuth();
   const isAdmin = user?.role?.toUpperCase() === "ADMIN";
+  const createPreviewUrlsRef = useRef<string[]>([]);
+  const editPreviewUrlsRef = useRef<Record<string, string[]>>({});
 
   const [categories, setCategories] = useState<CategoryDTO[]>([]);
   const [myAds, setMyAds] = useState<AdDTO[]>([]);
@@ -56,13 +50,18 @@ export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ ad
     name: "",
     description: "",
   });
-  const [editDrafts, setEditDrafts] = useState<Record<string, CreateAdFormState>>({});
+  const [editDrafts, setEditDrafts] = useState<Record<string, EditAdFormState>>({});
   const [isLoadingMyAds, setIsLoadingMyAds] = useState(true);
   const [isCreatingAd, setIsCreatingAd] = useState(false);
   const [isCreatingCategory, setIsCreatingCategory] = useState(false);
   const [feedbackMessage, setFeedbackMessage] = useState("");
   const [categoryMessage, setCategoryMessage] = useState("");
   const [pageError, setPageError] = useState("");
+
+  const resetEditPreviewRefs = () => {
+    Object.values(editPreviewUrlsRef.current).forEach((previewUrls) => revokePreviewUrls(previewUrls));
+    editPreviewUrlsRef.current = {};
+  };
 
   const categoryMap = useMemo(
     () =>
@@ -91,6 +90,13 @@ export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ ad
   }, [adAPI]);
 
   useEffect(() => {
+    return () => {
+      revokePreviewUrls(createPreviewUrlsRef.current);
+      Object.values(editPreviewUrlsRef.current).forEach((previewUrls) => revokePreviewUrls(previewUrls));
+    };
+  }, []);
+
+  useEffect(() => {
     const loadMyAds = async () => {
       if (!token) {
         return;
@@ -104,14 +110,17 @@ export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ ad
           limit: 12,
         });
         setMyAds(response.items);
+        resetEditPreviewRefs();
         setEditDrafts(
-          response.items.reduce<Record<string, CreateAdFormState>>((accumulator, ad) => {
+          response.items.reduce<Record<string, EditAdFormState>>((accumulator, ad) => {
             accumulator[ad.id] = {
               title: ad.title,
               description: ad.description,
               price: ad.price.toString(),
               categoryId: ad.categoryId,
-              imageUrlsInput: ad.imageUrls.join("\n"),
+              imageFiles: [],
+              imagePreviewUrls: [],
+              removeExistingImages: false,
             };
             return accumulator;
           }, {})
@@ -126,35 +135,80 @@ export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ ad
     void loadMyAds();
   }, [adAPI, token]);
 
-  const updateEditDraft = (adId: string, field: keyof CreateAdFormState, value: string) => {
+  const updateEditDraft = (adId: string, updates: Partial<EditAdFormState>) => {
     setEditDrafts((current) => ({
       ...current,
       [adId]: {
-        ...(current[adId] ?? INITIAL_CREATE_FORM),
-        [field]: value,
+        ...(current[adId] ?? {
+          title: "",
+          description: "",
+          price: "0",
+          categoryId: "",
+          imageFiles: [],
+          imagePreviewUrls: [],
+          removeExistingImages: false,
+        }),
+        ...updates,
       },
     }));
   };
 
-  const handleCreateImageSelection = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    try {
-      const imageUrls = await readFilesAsDataUrls(event.target.files);
-      setCreateForm((current) => ({
-        ...current,
-        imageUrlsInput: imageUrls.join("\n"),
-      }));
-    } finally {
-      event.target.value = "";
-    }
+  const handleCreateImageSelection = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(event.target.files ?? []);
+    const previewUrls = createPreviewUrls(selectedFiles);
+
+    revokePreviewUrls(createPreviewUrlsRef.current);
+    createPreviewUrlsRef.current = previewUrls;
+
+    setCreateForm((current) => ({
+      ...current,
+      imageFiles: selectedFiles,
+      imagePreviewUrls: previewUrls,
+    }));
+
+    event.target.value = "";
   };
 
-  const handleEditImageSelection = async (adId: string, event: React.ChangeEvent<HTMLInputElement>) => {
-    try {
-      const imageUrls = await readFilesAsDataUrls(event.target.files);
-      updateEditDraft(adId, "imageUrlsInput", imageUrls.join("\n"));
-    } finally {
-      event.target.value = "";
-    }
+  const handleEditImageSelection = (adId: string, event: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFiles = Array.from(event.target.files ?? []);
+    const previewUrls = createPreviewUrls(selectedFiles);
+
+    revokePreviewUrls(editPreviewUrlsRef.current[adId] ?? []);
+    editPreviewUrlsRef.current[adId] = previewUrls;
+
+    updateEditDraft(adId, {
+      imageFiles: selectedFiles,
+      imagePreviewUrls: previewUrls,
+      removeExistingImages: false,
+    });
+
+    event.target.value = "";
+  };
+
+  const handleRemoveCreateImages = () => {
+    revokePreviewUrls(createPreviewUrlsRef.current);
+    createPreviewUrlsRef.current = [];
+    setCreateForm((current) => ({
+      ...current,
+      imageFiles: [],
+      imagePreviewUrls: [],
+    }));
+  };
+
+  const handleClearEditSelection = (adId: string) => {
+    revokePreviewUrls(editPreviewUrlsRef.current[adId] ?? []);
+    editPreviewUrlsRef.current[adId] = [];
+    updateEditDraft(adId, {
+      imageFiles: [],
+      imagePreviewUrls: [],
+    });
+  };
+
+  const handleRemoveExistingImages = (adId: string) => {
+    handleClearEditSelection(adId);
+    updateEditDraft(adId, {
+      removeExistingImages: true,
+    });
   };
 
   const refreshMyAds = async () => {
@@ -166,14 +220,17 @@ export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ ad
     });
 
     setMyAds(response.items);
+    resetEditPreviewRefs();
     setEditDrafts(
-      response.items.reduce<Record<string, CreateAdFormState>>((accumulator, ad) => {
+      response.items.reduce<Record<string, EditAdFormState>>((accumulator, ad) => {
         accumulator[ad.id] = {
           title: ad.title,
           description: ad.description,
           price: ad.price.toString(),
           categoryId: ad.categoryId,
-          imageUrlsInput: ad.imageUrls.join("\n"),
+          imageFiles: [],
+          imagePreviewUrls: [],
+          removeExistingImages: false,
         };
         return accumulator;
       }, {})
@@ -193,10 +250,12 @@ export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ ad
         description: createForm.description.trim(),
         price: Number(createForm.price),
         categoryId: createForm.categoryId,
-        imageUrls: parseImageUrls(createForm.imageUrlsInput),
+        images: createForm.imageFiles,
       };
 
       await adAPI.createAd(token, payload);
+      revokePreviewUrls(createPreviewUrlsRef.current);
+      createPreviewUrlsRef.current = [];
       setCreateForm({
         ...INITIAL_CREATE_FORM,
         categoryId: categories[0]?.id || "",
@@ -222,7 +281,8 @@ export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ ad
         description: draft.description.trim(),
         price: Number(draft.price),
         categoryId: draft.categoryId,
-        imageUrls: parseImageUrls(draft.imageUrlsInput),
+        images: draft.imageFiles,
+        removeExistingImages: draft.removeExistingImages,
       };
 
       await adAPI.updateAd(token, adId, payload);
@@ -362,7 +422,7 @@ export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ ad
                 style={{ display: "none" }}
               />
 
-              {parseImageUrls(createForm.imageUrlsInput).length ? (
+              {createForm.imagePreviewUrls.length ? (
                 <div
                   style={{
                     display: "grid",
@@ -370,7 +430,7 @@ export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ ad
                     gap: "12px",
                   }}
                 >
-                  {parseImageUrls(createForm.imageUrlsInput).map((imageUrl, index) => (
+                  {createForm.imagePreviewUrls.map((imageUrl, index) => (
                     <img
                       key={`${index}-${imageUrl.slice(0, 20)}`}
                       src={imageUrl}
@@ -388,6 +448,11 @@ export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ ad
               ) : (
                 <p style={{ marginBottom: 0 }}>No image selected yet.</p>
               )}
+              {createForm.imagePreviewUrls.length ? (
+                <button className="btn btn-ghost" type="button" onClick={handleRemoveCreateImages}>
+                  Remove selected images
+                </button>
+              ) : null}
             </div>
 
             <button className="btn btn-accent" type="submit" disabled={isCreatingAd || !categories.length}>
@@ -472,10 +537,16 @@ export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ ad
                   description: ad.description,
                   price: ad.price.toString(),
                   categoryId: ad.categoryId,
-                  imageUrlsInput: ad.imageUrls.join("\n"),
+                  imageFiles: [],
+                  imagePreviewUrls: [],
+                  removeExistingImages: false,
                 };
 
-                const draftImages = parseImageUrls(draft.imageUrlsInput);
+                const draftImages = draft.imagePreviewUrls.length
+                  ? draft.imagePreviewUrls
+                  : draft.removeExistingImages
+                    ? []
+                    : ad.imageUrls;
 
                 return (
                   <article key={ad.id} className="card" style={{ background: "rgba(255,255,255,0.03)" }}>
@@ -506,22 +577,22 @@ export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ ad
                       <input
                         type="text"
                         value={draft.title}
-                        onChange={(event) => updateEditDraft(ad.id, "title", event.target.value)}
+                        onChange={(event) => updateEditDraft(ad.id, { title: event.target.value })}
                       />
                       <textarea
                         value={draft.description}
-                        onChange={(event) => updateEditDraft(ad.id, "description", event.target.value)}
+                        onChange={(event) => updateEditDraft(ad.id, { description: event.target.value })}
                       />
                       <input
                         type="number"
                         min="1"
                         step="0.01"
                         value={draft.price}
-                        onChange={(event) => updateEditDraft(ad.id, "price", event.target.value)}
+                        onChange={(event) => updateEditDraft(ad.id, { price: event.target.value })}
                       />
                       <select
                         value={draft.categoryId}
-                        onChange={(event) => updateEditDraft(ad.id, "categoryId", event.target.value)}
+                        onChange={(event) => updateEditDraft(ad.id, { categoryId: event.target.value })}
                       >
                         {categories.map((category) => (
                           <option key={category.id} value={category.id}>
@@ -573,6 +644,26 @@ export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ ad
                         ) : (
                           <p style={{ marginBottom: 0 }}>No image selected for this ad.</p>
                         )}
+                        <div className="flex gap-3" style={{ flexWrap: "wrap" }}>
+                          {draft.imagePreviewUrls.length ? (
+                            <button
+                              className="btn btn-ghost"
+                              type="button"
+                              onClick={() => handleClearEditSelection(ad.id)}
+                            >
+                              Clear replacement selection
+                            </button>
+                          ) : null}
+                          {ad.imageUrls.length && !draft.removeExistingImages ? (
+                            <button
+                              className="btn btn-ghost"
+                              type="button"
+                              onClick={() => handleRemoveExistingImages(ad.id)}
+                            >
+                              Remove current images
+                            </button>
+                          ) : null}
+                        </div>
                       </div>
                     </div>
                     <div className="flex gap-3" style={{ marginTop: "16px", flexWrap: "wrap" }}>

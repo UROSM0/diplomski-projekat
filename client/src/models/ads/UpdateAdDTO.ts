@@ -3,5 +3,6 @@ export interface UpdateAdDTO {
   description?: string;
   price?: number;
   categoryId?: string;
-  imageUrls?: string[];
+  images?: File[];
+  removeExistingImages?: boolean;
 }

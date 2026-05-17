@@ -19,6 +19,8 @@ import { UpdateAdDTO } from "../DTOs/UpdateAdDTO";
 import { UpdateUserProfileDTO } from "../DTOs/UpdateUserProfileDTO";
 import { UserDTO } from "../DTOs/UserDTO";
 import { FavoriteDTO } from "../DTOs/FavoriteDTO";
+import { GetNotificationsQueryDTO } from "../DTOs/GetNotificationsQueryDTO";
+import { NotificationDTO } from "../DTOs/NotificationDTO";
 import { ConversationDTO } from "../DTOs/ConversationDTO";
 import { CreateConversationDTO } from "../DTOs/CreateConversationDTO";
 import { CreateMessageDTO } from "../DTOs/CreateMessageDTO";
@@ -41,6 +43,9 @@ export interface IGatewayService {
   getFavorites(userId: string): Promise<FavoriteDTO[]>;
   addFavorite(userId: string, data: AddFavoriteDTO): Promise<FavoriteDTO>;
   removeFavorite(userId: string, adId: string): Promise<void>;
+  getNotifications(userId: string, query: GetNotificationsQueryDTO): Promise<NotificationDTO[]>;
+  markNotificationAsRead(userId: string, notificationId: string): Promise<NotificationDTO>;
+  markAllNotificationsAsRead(userId: string): Promise<void>;
   updateUserAccess(id: string, data: UpdateUserAccessDTO): Promise<UserDTO>;
   updateUserProfile(id: string, data: UpdateUserProfileDTO): Promise<UserDTO>;
   topUpBalance(id: string, data: TopUpBalanceDTO): Promise<UserDTO>;
@@ -52,8 +57,8 @@ export interface IGatewayService {
   getAdsForModeration(query: GetAdsQueryDTO): Promise<PaginatedAdsDTO>;
   getPublicAdById(id: string): Promise<AdDTO>;
   getMyAds(userId: string, query: GetAdsQueryDTO): Promise<PaginatedAdsDTO>;
-  createAd(userId: string, data: CreateAdDTO): Promise<AdDTO>;
-  updateAd(adId: string, userId: string, data: UpdateAdDTO): Promise<AdDTO>;
+  createAd(userId: string, data: CreateAdDTO, files: Express.Multer.File[]): Promise<AdDTO>;
+  updateAd(adId: string, userId: string, data: UpdateAdDTO, files: Express.Multer.File[]): Promise<AdDTO>;
   deleteAd(adId: string, userId: string): Promise<void>;
   moderateAd(adId: string, moderatorId: string, data: ModerateAdDTO): Promise<AdDTO>;
 

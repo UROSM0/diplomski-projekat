@@ -18,8 +18,10 @@ import { UpdateUserProfileDTO } from "../Domain/DTOs/UpdateUserProfileDTO";
 import { CreateConversationDTO } from "../Domain/DTOs/CreateConversationDTO";
 import { CreateMessageDTO } from "../Domain/DTOs/CreateMessageDTO";
 import { GetAuditLogsQueryDTO } from "../Domain/DTOs/GetAuditLogsQueryDTO";
+import { GetNotificationsQueryDTO } from "../Domain/DTOs/GetNotificationsQueryDTO";
 import { authenticate } from "../Middlewares/authentification/AuthMiddleware";
 import { authorize } from "../Middlewares/authorization/AuthorizeMiddleware";
+import { adImagesUploadMiddleware } from "./uploads/AdImageUpload";
 
 export class GatewayController {
   private readonly router: Router;
@@ -45,6 +47,9 @@ export class GatewayController {
     this.router.get("/users/me/favorites", authenticate, authorize("admin", "manager", "user"), this.getCurrentUserFavorites.bind(this));
     this.router.post("/users/me/favorites", authenticate, authorize("admin", "manager", "user"), this.addCurrentUserFavorite.bind(this));
     this.router.delete("/users/me/favorites/:adId", authenticate, authorize("admin", "manager", "user"), this.removeCurrentUserFavorite.bind(this));
+    this.router.get("/users/me/notifications", authenticate, authorize("admin", "manager", "user"), this.getCurrentUserNotifications.bind(this));
+    this.router.patch("/users/me/notifications/:id/read", authenticate, authorize("admin", "manager", "user"), this.markCurrentUserNotificationAsRead.bind(this));
+    this.router.post("/users/me/notifications/mark-all-read", authenticate, authorize("admin", "manager", "user"), this.markAllCurrentUserNotificationsAsRead.bind(this));
     this.router.get("/users/:id", authenticate, authorize("admin", "manager", "user"), this.getUserById.bind(this));
     this.router.patch("/users/:id/access", authenticate, authorize("admin"), this.updateUserAccess.bind(this));
 
@@ -57,8 +62,8 @@ export class GatewayController {
     this.router.get("/ads/review", authenticate, authorize("admin", "manager"), this.getAdsForModeration.bind(this));
     this.router.get("/ads/me", authenticate, authorize("admin", "manager", "user"), this.getMyAds.bind(this));
     this.router.get("/ads/:id", this.getPublicAdById.bind(this));
-    this.router.post("/ads", authenticate, authorize("admin", "manager", "user"), this.createAd.bind(this));
-    this.router.patch("/ads/:id", authenticate, authorize("admin", "manager", "user"), this.updateAd.bind(this));
+    this.router.post("/ads", authenticate, authorize("admin", "manager", "user"), adImagesUploadMiddleware, this.createAd.bind(this));
+    this.router.patch("/ads/:id", authenticate, authorize("admin", "manager", "user"), adImagesUploadMiddleware, this.updateAd.bind(this));
     this.router.delete("/ads/:id", authenticate, authorize("admin", "manager", "user"), this.deleteAd.bind(this));
     this.router.patch("/ads/:id/moderation", authenticate, authorize("admin", "manager"), this.moderateAd.bind(this));
 
@@ -243,6 +248,57 @@ export class GatewayController {
     }
   }
 
+  private async getCurrentUserNotifications(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ message: "Unauthorized." });
+        return;
+      }
+
+      const query: GetNotificationsQueryDTO = {
+        unreadOnly: this.toBoolean(this.getSingleValue(req.query.unreadOnly)),
+      };
+      const notifications = await this.gatewayService.getNotifications(req.user.id, query);
+      res.status(200).json(notifications);
+    } catch (err) {
+      res.status(400).json({ message: (err as Error).message });
+    }
+  }
+
+  private async markCurrentUserNotificationAsRead(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ message: "Unauthorized." });
+        return;
+      }
+
+      const id = this.getSingleValue(req.params.id);
+      if (!id) {
+        res.status(400).json({ message: "Invalid notification id." });
+        return;
+      }
+
+      const notification = await this.gatewayService.markNotificationAsRead(req.user.id, id);
+      res.status(200).json(notification);
+    } catch (err) {
+      res.status(400).json({ message: (err as Error).message });
+    }
+  }
+
+  private async markAllCurrentUserNotificationsAsRead(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ message: "Unauthorized." });
+        return;
+      }
+
+      await this.gatewayService.markAllNotificationsAsRead(req.user.id);
+      res.status(204).send();
+    } catch (err) {
+      res.status(400).json({ message: (err as Error).message });
+    }
+  }
+
   private async updateUserAccess(req: Request, res: Response): Promise<void> {
     try {
       if (!req.user) {
@@ -345,8 +401,9 @@ export class GatewayController {
         return;
       }
 
-      const data = req.body as CreateAdDTO;
-      const ad = await this.gatewayService.createAd(req.user.id, data);
+      const data = this.toCreateAdDTO(req.body);
+      const files = Array.isArray(req.files) ? req.files : [];
+      const ad = await this.gatewayService.createAd(req.user.id, data, files);
       res.status(201).json(ad);
     } catch (err) {
       res.status(400).json({ message: (err as Error).message });
@@ -366,8 +423,9 @@ export class GatewayController {
         return;
       }
 
-      const data = req.body as UpdateAdDTO;
-      const ad = await this.gatewayService.updateAd(id, req.user.id, data);
+      const data = this.toUpdateAdDTO(req.body);
+      const files = Array.isArray(req.files) ? req.files : [];
+      const ad = await this.gatewayService.updateAd(id, req.user.id, data, files);
       res.status(200).json(ad);
     } catch (err) {
       res.status(400).json({ message: (err as Error).message });
@@ -596,6 +654,45 @@ export class GatewayController {
       categoryId: this.getSingleValue(req.query.categoryId),
       status: this.getSingleValue(req.query.status),
     };
+  }
+
+  private toCreateAdDTO(body: unknown): CreateAdDTO {
+    const payload = typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
+
+    return {
+      title: this.getSingleValue(payload.title) ?? "",
+      description: this.getSingleValue(payload.description) ?? "",
+      price: this.toNumber(payload.price) ?? Number.NaN,
+      categoryId: this.getSingleValue(payload.categoryId) ?? "",
+    };
+  }
+
+  private toUpdateAdDTO(body: unknown): UpdateAdDTO {
+    const payload = typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
+
+    return {
+      title: this.getSingleValue(payload.title),
+      description: this.getSingleValue(payload.description),
+      price: this.toNumber(payload.price),
+      categoryId: this.getSingleValue(payload.categoryId),
+      removeExistingImages: this.toBoolean(this.getSingleValue(payload.removeExistingImages)),
+    };
+  }
+
+  private toBoolean(value?: string): boolean | undefined {
+    if (!value) {
+      return undefined;
+    }
+
+    if (value === "true") {
+      return true;
+    }
+
+    if (value === "false") {
+      return false;
+    }
+
+    return undefined;
   }
 
   private getSingleValue(value: unknown): string | undefined {

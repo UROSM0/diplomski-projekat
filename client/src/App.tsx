@@ -15,6 +15,7 @@ import { AuditAPI } from "./api/audit/AuditAPI";
 import { ProtectedRoute } from "./components/protected_route/ProtectedRoute";
 import { DashboardPage } from "./pages/DashboardPage";
 import { ChatPage } from "./pages/ChatPage";
+import { NotificationsPage } from "./pages/NotificationsPage";
 import { MarketplaceAllPage } from "./pages/marketplace/MarketplaceAllPage";
 import { MarketplaceAdDetailsPage } from "./pages/marketplace/MarketplaceAdDetailsPage";
 import { MarketplaceCreatePage } from "./pages/marketplace/MarketplaceCreatePage";
@@ -54,6 +55,14 @@ function App() {
           element={
             <ProtectedRoute requiredRole="admin,manager,user">
               <ChatPage userAPI={user_api} chatAPI={chat_api} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/notifications"
+          element={
+            <ProtectedRoute requiredRole="admin,manager,user">
+              <NotificationsPage userAPI={user_api} />
             </ProtectedRoute>
           }
         />

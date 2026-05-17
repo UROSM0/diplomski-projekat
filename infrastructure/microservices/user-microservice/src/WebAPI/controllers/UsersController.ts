@@ -1,7 +1,9 @@
 import { Router, Request, Response } from "express";
 import { AddFavoriteDTO } from "../../Domain/DTOs/AddFavoriteDTO";
 import { AdjustBalanceDTO } from "../../Domain/DTOs/AdjustBalanceDTO";
+import { CreateNotificationDTO } from "../../Domain/DTOs/CreateNotificationDTO";
 import { CreateUserDTO } from "../../Domain/DTOs/CreateUserDTO";
+import { GetNotificationsQueryDTO } from "../../Domain/DTOs/GetNotificationsQueryDTO";
 import { TopUpBalanceDTO } from "../../Domain/DTOs/TopUpBalanceDTO";
 import { UpdateUserAccessDTO } from "../../Domain/DTOs/UpdateUserAccessDTO";
 import { UpdateUserProfileDTO } from "../../Domain/DTOs/UpdateUserProfileDTO";
@@ -27,6 +29,10 @@ export class UsersController {
     this.router.get("/users/:id/favorites", this.getFavorites.bind(this));
     this.router.post("/users/:id/favorites", this.addFavorite.bind(this));
     this.router.delete("/users/:id/favorites/:adId", this.removeFavorite.bind(this));
+    this.router.get("/users/:id/notifications", this.getNotifications.bind(this));
+    this.router.post("/users/:id/notifications", this.createNotification.bind(this));
+    this.router.post("/users/:id/notifications/mark-all-read", this.markAllNotificationsAsRead.bind(this));
+    this.router.patch("/users/:id/notifications/:notificationId/read", this.markNotificationAsRead.bind(this));
     this.router.patch("/users/:id/access", this.updateUserAccess.bind(this));
     this.router.patch("/users/:id/profile", this.updateUserProfile.bind(this));
     this.router.post("/users/:id/top-up", this.topUpBalance.bind(this));
@@ -137,6 +143,78 @@ export class UsersController {
     }
   }
 
+  private async getNotifications(req: Request, res: Response): Promise<void> {
+    try {
+      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      if (!id || !id.trim()) {
+        res.status(400).json({ message: "Invalid user id." });
+        return;
+      }
+
+      const query: GetNotificationsQueryDTO = {
+        unreadOnly: this.toBoolean(req.query.unreadOnly),
+      };
+
+      const notifications = await this.usersService.getNotifications(id, query);
+      res.status(200).json(notifications);
+    } catch (err) {
+      this.logger.log((err as Error).message);
+      res.status(400).json({ message: (err as Error).message });
+    }
+  }
+
+  private async createNotification(req: Request, res: Response): Promise<void> {
+    try {
+      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      if (!id || !id.trim()) {
+        res.status(400).json({ message: "Invalid user id." });
+        return;
+      }
+
+      const notification = await this.usersService.createNotification(id, req.body as CreateNotificationDTO);
+      res.status(201).json(notification);
+    } catch (err) {
+      this.logger.log((err as Error).message);
+      res.status(400).json({ message: (err as Error).message });
+    }
+  }
+
+  private async markNotificationAsRead(req: Request, res: Response): Promise<void> {
+    try {
+      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      const notificationId = Array.isArray(req.params.notificationId)
+        ? req.params.notificationId[0]
+        : req.params.notificationId;
+
+      if (!id || !id.trim() || !notificationId || !notificationId.trim()) {
+        res.status(400).json({ message: "Invalid user id or notification id." });
+        return;
+      }
+
+      const notification = await this.usersService.markNotificationAsRead(id, notificationId);
+      res.status(200).json(notification);
+    } catch (err) {
+      this.logger.log((err as Error).message);
+      res.status(400).json({ message: (err as Error).message });
+    }
+  }
+
+  private async markAllNotificationsAsRead(req: Request, res: Response): Promise<void> {
+    try {
+      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+      if (!id || !id.trim()) {
+        res.status(400).json({ message: "Invalid user id." });
+        return;
+      }
+
+      await this.usersService.markAllNotificationsAsRead(id);
+      res.status(204).send();
+    } catch (err) {
+      this.logger.log((err as Error).message);
+      res.status(400).json({ message: (err as Error).message });
+    }
+  }
+
   private async updateUserAccess(req: Request, res: Response): Promise<void> {
     try {
       const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
@@ -186,6 +264,17 @@ export class UsersController {
       this.logger.log((err as Error).message);
       res.status(400).json({ message: (err as Error).message });
     }
+  }
+
+  private toBoolean(value: unknown): boolean | undefined {
+    const normalized = Array.isArray(value) ? value[0] : value;
+    if (typeof normalized !== "string") return undefined;
+
+    const lowered = normalized.trim().toLowerCase();
+    if (lowered === "true") return true;
+    if (lowered === "false") return false;
+
+    return undefined;
   }
 
   public getRouter(): Router {

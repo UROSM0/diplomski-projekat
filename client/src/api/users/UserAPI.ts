@@ -3,6 +3,8 @@ import { IUserAPI } from "./IUserAPI";
 import { AddFavoriteDTO } from "../../models/users/AddFavoriteDTO";
 import { ChangePasswordDTO } from "../../models/users/ChangePasswordDTO";
 import { FavoriteDTO } from "../../models/users/FavoriteDTO";
+import { GetNotificationsQueryDTO } from "../../models/users/GetNotificationsQueryDTO";
+import { NotificationDTO } from "../../models/users/NotificationDTO";
 import { TopUpBalanceDTO } from "../../models/users/TopUpBalanceDTO";
 import { UpdateUserAccessDTO } from "../../models/users/UpdateUserAccessDTO";
 import { UpdateUserProfileDTO } from "../../models/users/UpdateUserProfileDTO";
@@ -70,6 +72,29 @@ export class UserAPI implements IUserAPI {
 
   async removeFavorite(token: string, adId: string): Promise<void> {
     await this.axiosInstance.delete(`/users/me/favorites/${adId}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+  }
+
+  async getNotifications(token: string, query?: GetNotificationsQueryDTO): Promise<NotificationDTO[]> {
+    return (
+      await this.axiosInstance.get<NotificationDTO[]>("/users/me/notifications", {
+        headers: { Authorization: `Bearer ${token}` },
+        params: query,
+      })
+    ).data;
+  }
+
+  async markNotificationAsRead(token: string, notificationId: string): Promise<NotificationDTO> {
+    return (
+      await this.axiosInstance.patch<NotificationDTO>(`/users/me/notifications/${notificationId}/read`, undefined, {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+    ).data;
+  }
+
+  async markAllNotificationsAsRead(token: string): Promise<void> {
+    await this.axiosInstance.post("/users/me/notifications/mark-all-read", undefined, {
       headers: { Authorization: `Bearer ${token}` },
     });
   }

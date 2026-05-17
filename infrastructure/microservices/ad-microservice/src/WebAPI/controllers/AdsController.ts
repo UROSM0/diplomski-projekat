@@ -7,6 +7,7 @@ import { UpdateAdStatusDTO } from "../../Domain/DTOs/UpdateAdStatusDTO";
 import { UpdateAdDTO } from "../../Domain/DTOs/UpdateAdDTO";
 import { IAdsService } from "../../Domain/services/IAdsService";
 import { ILogerService } from "../../Domain/services/ILogerService";
+import { adImagesUploadMiddleware, deleteUploadedFiles, toStoredImageUrls } from "../uploads/AdImageUpload";
 
 export class AdsController {
   private readonly router: Router;
@@ -29,8 +30,8 @@ export class AdsController {
     this.router.get("/ads/review", this.getAdsForModeration.bind(this));
     this.router.get("/ads/my/:sellerId", this.getMyAds.bind(this));
     this.router.get("/ads/:id", this.getAdById.bind(this));
-    this.router.post("/ads", this.createAd.bind(this));
-    this.router.patch("/ads/:id", this.updateAd.bind(this));
+    this.router.post("/ads", adImagesUploadMiddleware, this.createAd.bind(this));
+    this.router.patch("/ads/:id", adImagesUploadMiddleware, this.updateAd.bind(this));
     this.router.delete("/ads/:id", this.deleteAd.bind(this));
     this.router.patch("/ads/:id/moderation", this.moderateAd.bind(this));
   }
@@ -128,17 +129,22 @@ export class AdsController {
   }
 
   private async createAd(req: Request, res: Response): Promise<void> {
+    const files = Array.isArray(req.files) ? req.files : [];
+
     try {
-      const data = req.body as CreateAdDTO;
+      const data = this.toCreateAdDTO(req.body, files);
       const ad = await this.adsService.createAd(data);
       res.status(201).json(ad);
     } catch (err) {
+      await deleteUploadedFiles(files);
       this.logger.log((err as Error).message);
       res.status(400).json({ message: (err as Error).message });
     }
   }
 
   private async updateAd(req: Request, res: Response): Promise<void> {
+    const files = Array.isArray(req.files) ? req.files : [];
+
     try {
       const id = this.getSingleParam(req.params.id);
       const sellerId = this.getSellerId(req.body);
@@ -148,10 +154,11 @@ export class AdsController {
         return;
       }
 
-      const { sellerId: _sellerId, ...payload } = req.body as UpdateAdDTO & { sellerId?: string };
+      const payload = this.toUpdateAdDTO(req.body, files);
       const ad = await this.adsService.updateAd(id, sellerId, payload);
       res.status(200).json(ad);
     } catch (err) {
+      await deleteUploadedFiles(files);
       this.logger.log((err as Error).message);
       res.status(400).json({ message: (err as Error).message });
     }
@@ -225,6 +232,33 @@ export class AdsController {
     return typeof sellerId === "string" && sellerId.trim() ? sellerId : null;
   }
 
+  private toCreateAdDTO(body: unknown, files: Express.Multer.File[]): CreateAdDTO {
+    const payload = typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
+
+    return {
+      sellerId: this.getStringValue(payload.sellerId) ?? "",
+      title: this.getStringValue(payload.title) ?? "",
+      description: this.getStringValue(payload.description) ?? "",
+      price: this.toNumber(payload.price) ?? Number.NaN,
+      categoryId: this.getStringValue(payload.categoryId) ?? "",
+      imageUrls: toStoredImageUrls(files),
+    };
+  }
+
+  private toUpdateAdDTO(body: unknown, files: Express.Multer.File[]): UpdateAdDTO {
+    const payload = typeof body === "object" && body !== null ? (body as Record<string, unknown>) : {};
+    const imageUrls = toStoredImageUrls(files);
+
+    return {
+      title: this.getStringValue(payload.title),
+      description: this.getStringValue(payload.description),
+      price: this.toNumber(payload.price),
+      categoryId: this.getStringValue(payload.categoryId),
+      imageUrls: imageUrls.length ? imageUrls : undefined,
+      removeExistingImages: imageUrls.length > 0 ? true : this.toBoolean(payload.removeExistingImages),
+    };
+  }
+
   private getSingleParam(value: string | string[] | undefined): string | null {
     const normalized = Array.isArray(value) ? value[0] : value;
     return normalized?.trim() ? normalized : null;
@@ -238,12 +272,22 @@ export class AdsController {
     return typeof value === "string" ? value : undefined;
   }
 
+  private getStringValue(value: unknown): string | undefined {
+    return typeof value === "string" ? value : undefined;
+  }
+
   private toNumber(value: unknown): number | undefined {
-    const normalized = this.getSingleQuery(value);
+    const normalized = this.getStringValue(value);
     if (!normalized) return undefined;
 
     const parsed = Number(normalized);
     return Number.isFinite(parsed) ? parsed : undefined;
+  }
+
+  private toBoolean(value: unknown): boolean | undefined {
+    if (value === "true") return true;
+    if (value === "false") return false;
+    return undefined;
   }
 
   public getRouter(): Router {

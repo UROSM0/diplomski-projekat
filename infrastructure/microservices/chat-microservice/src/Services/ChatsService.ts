@@ -52,6 +52,27 @@ export class ChatsService implements IChatsService {
     return this.toConversationDTO(conversation, data.requesterId);
   }
 
+  async getConversationById(conversationId: string, userId: string): Promise<ConversationDTO> {
+    const conversation = await this.ensureParticipant(conversationId, userId);
+
+    const hydratedConversation = await this.prisma.conversation.findUnique({
+      where: { id: conversation.id },
+      include: {
+        messages: {
+          orderBy: { createdAt: "desc" },
+          take: 1,
+        },
+      },
+    });
+
+    if (!hydratedConversation) {
+      throw new Error("Conversation not found.");
+    }
+
+    const unreadCounts = await this.getUnreadCounts(userId, [conversation.id]);
+    return this.toConversationDTO(hydratedConversation, userId, unreadCounts.get(conversation.id) ?? 0);
+  }
+
   async getConversations(userId: string): Promise<ConversationDTO[]> {
     if (!userId?.trim()) {
       throw new Error("User id is required.");

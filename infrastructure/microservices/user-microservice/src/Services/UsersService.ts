@@ -1,8 +1,19 @@
-import { Favorite, PrismaClient, User, UserRole as PrismaUserRole, UserStatus as PrismaUserStatus } from "@prisma/client";
+import {
+  Favorite,
+  Notification,
+  NotificationType as PrismaNotificationType,
+  PrismaClient,
+  User,
+  UserRole as PrismaUserRole,
+  UserStatus as PrismaUserStatus,
+} from "@prisma/client";
 import { AddFavoriteDTO } from "../Domain/DTOs/AddFavoriteDTO";
 import { AdjustBalanceDTO } from "../Domain/DTOs/AdjustBalanceDTO";
+import { CreateNotificationDTO } from "../Domain/DTOs/CreateNotificationDTO";
 import { CreateUserDTO } from "../Domain/DTOs/CreateUserDTO";
 import { FavoriteDTO } from "../Domain/DTOs/FavoriteDTO";
+import { GetNotificationsQueryDTO } from "../Domain/DTOs/GetNotificationsQueryDTO";
+import { NotificationDTO } from "../Domain/DTOs/NotificationDTO";
 import { TopUpBalanceDTO } from "../Domain/DTOs/TopUpBalanceDTO";
 import { UpdateUserAccessDTO } from "../Domain/DTOs/UpdateUserAccessDTO";
 import { UpdateUserProfileDTO } from "../Domain/DTOs/UpdateUserProfileDTO";
@@ -94,6 +105,89 @@ export class UsersService implements IUsersService {
       where: {
         userId,
         adId,
+      },
+    });
+  }
+
+  async getNotifications(userId: string, query: GetNotificationsQueryDTO): Promise<NotificationDTO[]> {
+    await this.ensureUserExists(userId);
+
+    const notifications = await this.prisma.notification.findMany({
+      where: {
+        userId,
+        ...(query.unreadOnly ? { isRead: false } : {}),
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return notifications.map((notification) => this.toNotificationDTO(notification));
+  }
+
+  async createNotification(userId: string, data: CreateNotificationDTO): Promise<NotificationDTO> {
+    await this.ensureUserExists(userId);
+
+    const type = this.normalizeNotificationType(data.type);
+    const title = data.title?.trim();
+    const content = data.content?.trim();
+
+    if (!title) {
+      throw new Error("Notification title is required.");
+    }
+
+    if (!content) {
+      throw new Error("Notification content is required.");
+    }
+
+    const notification = await this.prisma.notification.create({
+      data: {
+        userId,
+        type,
+        title,
+        content,
+      },
+    });
+
+    return this.toNotificationDTO(notification);
+  }
+
+  async markNotificationAsRead(userId: string, notificationId: string): Promise<NotificationDTO> {
+    await this.ensureUserExists(userId);
+
+    if (!notificationId?.trim()) {
+      throw new Error("Notification id is required.");
+    }
+
+    const existingNotification = await this.prisma.notification.findFirst({
+      where: {
+        id: notificationId,
+        userId,
+      },
+    });
+
+    if (!existingNotification) {
+      throw new Error("Notification not found.");
+    }
+
+    const notification = await this.prisma.notification.update({
+      where: { id: notificationId },
+      data: {
+        isRead: true,
+      },
+    });
+
+    return this.toNotificationDTO(notification);
+  }
+
+  async markAllNotificationsAsRead(userId: string): Promise<void> {
+    await this.ensureUserExists(userId);
+
+    await this.prisma.notification.updateMany({
+      where: {
+        userId,
+        isRead: false,
+      },
+      data: {
+        isRead: true,
       },
     });
   }
@@ -238,5 +332,29 @@ export class UsersService implements IUsersService {
       adId: favorite.adId,
       createdAt: favorite.createdAt.toISOString(),
     };
+  }
+
+  private toNotificationDTO(notification: Notification): NotificationDTO {
+    return {
+      id: notification.id,
+      userId: notification.userId,
+      type: notification.type,
+      title: notification.title,
+      content: notification.content,
+      isRead: notification.isRead,
+      createdAt: notification.createdAt.toISOString(),
+    };
+  }
+
+  private normalizeNotificationType(type: string): PrismaNotificationType {
+    const normalizedType = type.trim().toUpperCase();
+
+    if (normalizedType === PrismaNotificationType.AD_APPROVED) return PrismaNotificationType.AD_APPROVED;
+    if (normalizedType === PrismaNotificationType.AD_REJECTED) return PrismaNotificationType.AD_REJECTED;
+    if (normalizedType === PrismaNotificationType.NEW_MESSAGE) return PrismaNotificationType.NEW_MESSAGE;
+    if (normalizedType === PrismaNotificationType.PURCHASE_SUCCESS) return PrismaNotificationType.PURCHASE_SUCCESS;
+    if (normalizedType === PrismaNotificationType.NEW_RATING) return PrismaNotificationType.NEW_RATING;
+
+    throw new Error("Invalid notification type.");
   }
 }
