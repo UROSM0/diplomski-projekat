@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { IAdAPI } from "../../api/ads/IAdAPI";
+import { IChatAPI } from "../../api/chat/IChatAPI";
 import { ITransactionAPI } from "../../api/transactions/ITransactionAPI";
 import { IUserAPI } from "../../api/users/IUserAPI";
 import { useAuth } from "../../hooks/useAuthHook";
@@ -8,16 +9,19 @@ import { AdDTO } from "../../models/ads/AdDTO";
 
 type MarketplaceAdDetailsPageProps = {
   adAPI: IAdAPI;
+  chatAPI: IChatAPI;
   transactionAPI: ITransactionAPI;
   userAPI: IUserAPI;
 };
 
 export const MarketplaceAdDetailsPage: React.FC<MarketplaceAdDetailsPageProps> = ({
   adAPI,
+  chatAPI,
   transactionAPI,
   userAPI,
 }) => {
   const { adId } = useParams<{ adId: string }>();
+  const navigate = useNavigate();
   const { token, user } = useAuth();
 
   const [ad, setAd] = useState<AdDTO | null>(null);
@@ -26,6 +30,7 @@ export const MarketplaceAdDetailsPage: React.FC<MarketplaceAdDetailsPageProps> =
   const [purchaseMessage, setPurchaseMessage] = useState("");
   const [pageError, setPageError] = useState("");
   const [isPurchasing, setIsPurchasing] = useState(false);
+  const [isStartingChat, setIsStartingChat] = useState(false);
   const [isUpdatingFavorite, setIsUpdatingFavorite] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
 
@@ -107,6 +112,28 @@ export const MarketplaceAdDetailsPage: React.FC<MarketplaceAdDetailsPageProps> =
       setPageError("Kupovina nije uspela.");
     } finally {
       setIsPurchasing(false);
+    }
+  };
+
+  const handleStartChat = async () => {
+    if (!token || !ad) {
+      return;
+    }
+
+    setIsStartingChat(true);
+    setPageError("");
+
+    try {
+      const conversation = await chatAPI.createOrGetConversation(token, {
+        participantId: ad.sellerId,
+        adId: ad.id,
+        adTitle: ad.title,
+      });
+      navigate(`/chat/${conversation.id}`);
+    } catch {
+      setPageError("Failed to start chat.");
+    } finally {
+      setIsStartingChat(false);
     }
   };
 
@@ -314,6 +341,14 @@ export const MarketplaceAdDetailsPage: React.FC<MarketplaceAdDetailsPageProps> =
               disabled={!token || isUpdatingFavorite}
             >
               {isFavorite ? "Ukloni iz omiljenih" : "Dodaj u omiljene"}
+            </button>
+            <button
+              className="btn btn-standard"
+              type="button"
+              onClick={() => void handleStartChat()}
+              disabled={!token || isOwner || isStartingChat}
+            >
+              {isOwner ? "Ovo je tvoj oglas" : isStartingChat ? "Otvaranje..." : "Poruka prodavcu"}
             </button>
             <button
               className="btn btn-accent"

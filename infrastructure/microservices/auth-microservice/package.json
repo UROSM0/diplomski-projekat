@@ -8,6 +8,7 @@
     "build": "tsc",
     "start:dist": "node dist/index.js",
     "typecheck": "tsc --noEmit",
+    "seed:admin": "ts-node src/scripts/seedAdmin.ts",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push"
   },

@@ -6,7 +6,7 @@ import { UserDTO } from "../../../models/users/UserDTO";
 
 type DashboardNavbarProps = {
   userAPI: IUserAPI;
-  activePage?: "dashboard" | "marketplace";
+  activePage?: "dashboard" | "marketplace" | "chat";
 };
 
 export const DashboardNavbar: React.FC<DashboardNavbarProps> = ({
@@ -60,6 +60,13 @@ export const DashboardNavbar: React.FC<DashboardNavbarProps> = ({
           style={{ padding: "8px 14px" }}
         >
           Marketplace
+        </button>
+        <button
+          className={activePage === "chat" ? "btn btn-accent" : "btn btn-ghost"}
+          onClick={() => navigate("/chat")}
+          style={{ padding: "8px 14px" }}
+        >
+          Chat
         </button>
       </div>
 

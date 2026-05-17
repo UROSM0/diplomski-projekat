@@ -19,6 +19,12 @@ import { UpdateAdDTO } from "../DTOs/UpdateAdDTO";
 import { UpdateUserProfileDTO } from "../DTOs/UpdateUserProfileDTO";
 import { UserDTO } from "../DTOs/UserDTO";
 import { FavoriteDTO } from "../DTOs/FavoriteDTO";
+import { ConversationDTO } from "../DTOs/ConversationDTO";
+import { CreateConversationDTO } from "../DTOs/CreateConversationDTO";
+import { CreateMessageDTO } from "../DTOs/CreateMessageDTO";
+import { MessageDTO } from "../DTOs/MessageDTO";
+import { GetAuditLogsQueryDTO } from "../DTOs/GetAuditLogsQueryDTO";
+import { PaginatedAuditLogsDTO } from "../DTOs/PaginatedAuditLogsDTO";
 import { AuthResponseType } from "../types/AuthResponse";
 
 export interface IGatewayService {
@@ -56,4 +62,14 @@ export interface IGatewayService {
   getPurchases(userId: string): Promise<TransactionDTO[]>;
   getSales(userId: string): Promise<TransactionDTO[]>;
   rateTransaction(transactionId: string, buyerId: string, data: CreateRatingDTO): Promise<TransactionDTO>;
+
+  // Chat
+  createOrGetConversation(userId: string, data: CreateConversationDTO): Promise<ConversationDTO>;
+  getConversations(userId: string): Promise<ConversationDTO[]>;
+  getMessages(conversationId: string, userId: string): Promise<MessageDTO[]>;
+  sendMessage(conversationId: string, userId: string, data: CreateMessageDTO): Promise<MessageDTO>;
+  markConversationAsRead(conversationId: string, userId: string): Promise<void>;
+
+  // Audit
+  getAuditLogs(query: GetAuditLogsQueryDTO): Promise<PaginatedAuditLogsDTO>;
 }

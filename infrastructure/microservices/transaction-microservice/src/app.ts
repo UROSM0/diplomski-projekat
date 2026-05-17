@@ -18,6 +18,7 @@ const corsMethods = process.env.CORS_METHODS?.split(",").map((method) => method.
   "POST",
   "PATCH",
   "DELETE",
+  "OPTIONS",
 ];
 
 app.use(

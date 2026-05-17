@@ -198,9 +198,9 @@ export class AuthService implements IAuthService {
   }
 
   private async createUserProfile(authUserId: string, data: RegistrationUserDTO): Promise<void> {
-    const userServiceUrl = process.env.USER_SERVICE_API;
+    const userServiceUrl = process.env.USER_SERVICE_URL ?? process.env.USER_SERVICE_API;
     if (!userServiceUrl) {
-      throw new Error("USER_SERVICE_API is not configured.");
+      throw new Error("USER_SERVICE_URL is not configured.");
     }
 
     const response = await fetch(`${userServiceUrl}/internal/users`, {

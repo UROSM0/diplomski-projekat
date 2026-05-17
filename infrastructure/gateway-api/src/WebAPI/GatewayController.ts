@@ -15,6 +15,9 @@ import { ModerateAdDTO } from "../Domain/DTOs/ModerateAdDTO";
 import { UpdateUserAccessDTO } from "../Domain/DTOs/UpdateUserAccessDTO";
 import { UpdateAdDTO } from "../Domain/DTOs/UpdateAdDTO";
 import { UpdateUserProfileDTO } from "../Domain/DTOs/UpdateUserProfileDTO";
+import { CreateConversationDTO } from "../Domain/DTOs/CreateConversationDTO";
+import { CreateMessageDTO } from "../Domain/DTOs/CreateMessageDTO";
+import { GetAuditLogsQueryDTO } from "../Domain/DTOs/GetAuditLogsQueryDTO";
 import { authenticate } from "../Middlewares/authentification/AuthMiddleware";
 import { authorize } from "../Middlewares/authorization/AuthorizeMiddleware";
 
@@ -64,6 +67,16 @@ export class GatewayController {
     this.router.get("/transactions/me/purchases", authenticate, authorize("admin", "manager", "user"), this.getMyPurchases.bind(this));
     this.router.get("/transactions/me/sales", authenticate, authorize("admin", "manager", "user"), this.getMySales.bind(this));
     this.router.post("/transactions/:id/rating", authenticate, authorize("admin", "manager", "user"), this.rateTransaction.bind(this));
+
+    // Chat
+    this.router.post("/chat/conversations", authenticate, authorize("admin", "manager", "user"), this.createOrGetConversation.bind(this));
+    this.router.get("/chat/conversations", authenticate, authorize("admin", "manager", "user"), this.getConversations.bind(this));
+    this.router.get("/chat/conversations/:id/messages", authenticate, authorize("admin", "manager", "user"), this.getMessages.bind(this));
+    this.router.post("/chat/conversations/:id/messages", authenticate, authorize("admin", "manager", "user"), this.sendMessage.bind(this));
+    this.router.patch("/chat/conversations/:id/read", authenticate, authorize("admin", "manager", "user"), this.markConversationAsRead.bind(this));
+
+    // Audit
+    this.router.get("/audit/logs", authenticate, authorize("admin"), this.getAuditLogs.bind(this));
   }
 
   // Auth
@@ -461,6 +474,115 @@ export class GatewayController {
       const data = req.body as CreateRatingDTO;
       const transaction = await this.gatewayService.rateTransaction(id, req.user.id, data);
       res.status(200).json(transaction);
+    } catch (err) {
+      res.status(400).json({ message: (err as Error).message });
+    }
+  }
+
+  private async createOrGetConversation(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ message: "Unauthorized." });
+        return;
+      }
+
+      const data = req.body as CreateConversationDTO;
+      const conversation = await this.gatewayService.createOrGetConversation(req.user.id, data);
+      res.status(201).json(conversation);
+    } catch (err) {
+      res.status(400).json({ message: (err as Error).message });
+    }
+  }
+
+  private async getConversations(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ message: "Unauthorized." });
+        return;
+      }
+
+      const conversations = await this.gatewayService.getConversations(req.user.id);
+      res.status(200).json(conversations);
+    } catch (err) {
+      res.status(400).json({ message: (err as Error).message });
+    }
+  }
+
+  private async getMessages(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ message: "Unauthorized." });
+        return;
+      }
+
+      const id = this.getSingleValue(req.params.id);
+      if (!id) {
+        res.status(400).json({ message: "Invalid conversation id." });
+        return;
+      }
+
+      const messages = await this.gatewayService.getMessages(id, req.user.id);
+      res.status(200).json(messages);
+    } catch (err) {
+      res.status(400).json({ message: (err as Error).message });
+    }
+  }
+
+  private async sendMessage(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ message: "Unauthorized." });
+        return;
+      }
+
+      const id = this.getSingleValue(req.params.id);
+      if (!id) {
+        res.status(400).json({ message: "Invalid conversation id." });
+        return;
+      }
+
+      const data = req.body as CreateMessageDTO;
+      const message = await this.gatewayService.sendMessage(id, req.user.id, data);
+      res.status(201).json(message);
+    } catch (err) {
+      res.status(400).json({ message: (err as Error).message });
+    }
+  }
+
+  private async markConversationAsRead(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ message: "Unauthorized." });
+        return;
+      }
+
+      const id = this.getSingleValue(req.params.id);
+      if (!id) {
+        res.status(400).json({ message: "Invalid conversation id." });
+        return;
+      }
+
+      await this.gatewayService.markConversationAsRead(id, req.user.id);
+      res.status(204).send();
+    } catch (err) {
+      res.status(400).json({ message: (err as Error).message });
+    }
+  }
+
+  private async getAuditLogs(req: Request, res: Response): Promise<void> {
+    try {
+      const query: GetAuditLogsQueryDTO = {
+        page: this.toNumber(req.query.page),
+        limit: this.toNumber(req.query.limit),
+        userId: this.getSingleValue(req.query.userId),
+        action: this.getSingleValue(req.query.action),
+        service: this.getSingleValue(req.query.service),
+        dateFrom: this.getSingleValue(req.query.dateFrom),
+        dateTo: this.getSingleValue(req.query.dateTo),
+      };
+
+      const logs = await this.gatewayService.getAuditLogs(query);
+      res.status(200).json(logs);
     } catch (err) {
       res.status(400).json({ message: (err as Error).message });
     }

@@ -49,13 +49,13 @@ export class TransactionsService implements ITransactionsService {
 
   constructor(private readonly prisma: PrismaClient) {
     this.userClient = axios.create({
-      baseURL: process.env.USER_SERVICE_URL,
+      baseURL: process.env.USER_SERVICE_URL ?? process.env.USER_SERVICE_API,
       headers: { "Content-Type": "application/json" },
       timeout: 5000,
     });
 
     this.adClient = axios.create({
-      baseURL: process.env.AD_SERVICE_URL,
+      baseURL: process.env.AD_SERVICE_URL ?? process.env.AD_SERVICE_API,
       headers: { "Content-Type": "application/json" },
       timeout: 5000,
     });
