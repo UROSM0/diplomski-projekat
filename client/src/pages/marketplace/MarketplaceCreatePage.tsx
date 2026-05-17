@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { IAdAPI } from "../../api/ads/IAdAPI";
+import { getErrorMessage } from "../../api/shared/apiError";
 import { useAuth } from "../../hooks/useAuthHook";
 import { AdDTO } from "../../models/ads/AdDTO";
 import { CategoryDTO } from "../../models/ads/CategoryDTO";
@@ -81,8 +82,8 @@ export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ ad
           ...current,
           categoryId: current.categoryId || loadedCategories[0]?.id || "",
         }));
-      } catch {
-        setPageError("Failed to load categories.");
+      } catch (error) {
+        setPageError(getErrorMessage(error, "Ucavanje kategorija nije uspelo."));
       }
     };
 
@@ -125,8 +126,8 @@ export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ ad
             return accumulator;
           }, {})
         );
-      } catch {
-        setPageError("Failed to load your ads.");
+      } catch (error) {
+        setPageError(getErrorMessage(error, "Ucavanje vasih oglasa nije uspelo."));
       } finally {
         setIsLoadingMyAds(false);
       }
@@ -262,8 +263,8 @@ export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ ad
       });
       await refreshMyAds();
       setFeedbackMessage("Ad created successfully and sent for moderation.");
-    } catch {
-      setFeedbackMessage("Ad creation failed.");
+    } catch (error) {
+      setFeedbackMessage(getErrorMessage(error, "Kreiranje oglasa nije uspelo."));
     } finally {
       setIsCreatingAd(false);
     }
@@ -288,8 +289,8 @@ export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ ad
       await adAPI.updateAd(token, adId, payload);
       await refreshMyAds();
       setFeedbackMessage("Ad updated and moved back to moderation.");
-    } catch {
-      setFeedbackMessage("Ad update failed.");
+    } catch (error) {
+      setFeedbackMessage(getErrorMessage(error, "Izmena oglasa nije uspela."));
     }
   };
 
@@ -302,8 +303,8 @@ export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ ad
       await adAPI.deleteAd(token, adId);
       await refreshMyAds();
       setFeedbackMessage("Ad deleted successfully.");
-    } catch {
-      setFeedbackMessage("Ad deletion failed.");
+    } catch (error) {
+      setFeedbackMessage(getErrorMessage(error, "Brisanje oglasa nije uspelo."));
     }
   };
 
@@ -329,8 +330,8 @@ export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ ad
       }));
       setCategoryForm({ name: "", description: "" });
       setCategoryMessage("Category created successfully.");
-    } catch {
-      setCategoryMessage("Category creation failed.");
+    } catch (error) {
+      setCategoryMessage(getErrorMessage(error, "Kreiranje kategorije nije uspelo."));
     } finally {
       setIsCreatingCategory(false);
     }

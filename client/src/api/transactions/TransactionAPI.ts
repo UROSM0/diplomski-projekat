@@ -3,6 +3,7 @@ import { ITransactionAPI } from "./ITransactionAPI";
 import { CreateRatingDTO } from "../../models/transactions/CreateRatingDTO";
 import { PurchaseTransactionDTO } from "../../models/transactions/PurchaseTransactionDTO";
 import { TransactionDTO } from "../../models/transactions/TransactionDTO";
+import { createApiError } from "../shared/apiError";
 
 export class TransactionAPI implements ITransactionAPI {
   private readonly axiosInstance: AxiosInstance;
@@ -17,11 +18,15 @@ export class TransactionAPI implements ITransactionAPI {
   }
 
   async purchaseAd(token: string, data: PurchaseTransactionDTO): Promise<TransactionDTO> {
-    return (
-      await this.axiosInstance.post<TransactionDTO>("/transactions/purchase", data, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-    ).data;
+    try {
+      return (
+        await this.axiosInstance.post<TransactionDTO>("/transactions/purchase", data, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+      ).data;
+    } catch (error) {
+      throw createApiError(error, "Purchase failed.");
+    }
   }
 
   async getMyPurchases(token: string): Promise<TransactionDTO[]> {
@@ -41,10 +46,14 @@ export class TransactionAPI implements ITransactionAPI {
   }
 
   async createRating(token: string, transactionId: string, data: CreateRatingDTO): Promise<TransactionDTO> {
-    return (
-      await this.axiosInstance.post<TransactionDTO>(`/transactions/${transactionId}/rating`, data, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-    ).data;
+    try {
+      return (
+        await this.axiosInstance.post<TransactionDTO>(`/transactions/${transactionId}/rating`, data, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+      ).data;
+    } catch (error) {
+      throw createApiError(error, "Rating failed.");
+    }
   }
 }

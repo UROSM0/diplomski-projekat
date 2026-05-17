@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { IAdAPI } from "../../api/ads/IAdAPI";
+import { getErrorMessage } from "../../api/shared/apiError";
 import { IUserAPI } from "../../api/users/IUserAPI";
 import { useAuth } from "../../hooks/useAuthHook";
 import { AdDTO } from "../../models/ads/AdDTO";
@@ -39,8 +40,8 @@ export const MarketplaceAllPage: React.FC<MarketplaceAllPageProps> = ({ adAPI, u
     const loadCategories = async () => {
       try {
         setCategories(await adAPI.getCategories());
-      } catch {
-        setPageError("Failed to load categories.");
+      } catch (error) {
+        setPageError(getErrorMessage(error, "Ucavanje kategorija nije uspelo."));
       }
     };
 
@@ -60,8 +61,8 @@ export const MarketplaceAllPage: React.FC<MarketplaceAllPageProps> = ({ adAPI, u
           limit: 12,
         });
         setPublicAds(response.items);
-      } catch {
-        setPageError("Failed to load marketplace ads.");
+      } catch (error) {
+        setPageError(getErrorMessage(error, "Ucavanje oglasa nije uspelo."));
       } finally {
         setIsLoadingPublicAds(false);
       }
@@ -106,8 +107,8 @@ export const MarketplaceAllPage: React.FC<MarketplaceAllPageProps> = ({ adAPI, u
         await userAPI.addFavorite(token, { adId });
         setFavoriteAdIds((current) => [...current, adId]);
       }
-    } catch {
-      setPageError("Failed to update favorites.");
+    } catch (error) {
+      setPageError(getErrorMessage(error, "Izmena omiljenih oglasa nije uspela."));
     }
   };
 

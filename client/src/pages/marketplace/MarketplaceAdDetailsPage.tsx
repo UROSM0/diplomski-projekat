@@ -2,10 +2,13 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { IAdAPI } from "../../api/ads/IAdAPI";
 import { IChatAPI } from "../../api/chat/IChatAPI";
+import { getErrorMessage } from "../../api/shared/apiError";
 import { ITransactionAPI } from "../../api/transactions/ITransactionAPI";
 import { IUserAPI } from "../../api/users/IUserAPI";
 import { useAuth } from "../../hooks/useAuthHook";
 import { AdDTO } from "../../models/ads/AdDTO";
+import { UserDTO } from "../../models/users/UserDTO";
+import { formatUserDisplayName } from "../../utils/userDisplay";
 
 type MarketplaceAdDetailsPageProps = {
   adAPI: IAdAPI;
@@ -33,11 +36,12 @@ export const MarketplaceAdDetailsPage: React.FC<MarketplaceAdDetailsPageProps> =
   const [isStartingChat, setIsStartingChat] = useState(false);
   const [isUpdatingFavorite, setIsUpdatingFavorite] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
+  const [seller, setSeller] = useState<UserDTO | null>(null);
 
   useEffect(() => {
     const loadAd = async () => {
       if (!adId) {
-        setPageError("Ad not found.");
+        setPageError("Oglas nije pronadjen.");
         setIsLoading(false);
         return;
       }
@@ -54,15 +58,24 @@ export const MarketplaceAdDetailsPage: React.FC<MarketplaceAdDetailsPageProps> =
         setAd(loadedAd);
         setIsFavorite(favorites.some((favorite) => favorite.adId === adId));
         setSelectedImageIndex(0);
-      } catch {
-        setPageError("Failed to load ad details.");
+        setSeller(null);
+
+        if (token && user?.id !== loadedAd.sellerId) {
+          try {
+            setSeller(await userAPI.getUserById(token, loadedAd.sellerId));
+          } catch {
+            setSeller(null);
+          }
+        }
+      } catch (error) {
+        setPageError(getErrorMessage(error, "Ucavanje detalja oglasa nije uspelo."));
       } finally {
         setIsLoading(false);
       }
     };
 
     void loadAd();
-  }, [adAPI, adId, token, userAPI]);
+  }, [adAPI, adId, token, user?.id, userAPI]);
 
   const selectedImage = useMemo(() => {
     if (!ad?.imageUrls.length) {
@@ -88,8 +101,8 @@ export const MarketplaceAdDetailsPage: React.FC<MarketplaceAdDetailsPageProps> =
         await userAPI.addFavorite(token, { adId });
         setIsFavorite(true);
       }
-    } catch {
-      setPageError("Failed to update favorites.");
+    } catch (error) {
+      setPageError(getErrorMessage(error, "Izmena omiljenih oglasa nije uspela."));
     } finally {
       setIsUpdatingFavorite(false);
     }
@@ -107,9 +120,9 @@ export const MarketplaceAdDetailsPage: React.FC<MarketplaceAdDetailsPageProps> =
     try {
       await transactionAPI.purchaseAd(token, { adId });
       setAd((current) => (current ? { ...current, status: "SOLD" } : current));
-      setPurchaseMessage("Kupovina je uspešno završena. Oglas je označen kao prodat.");
-    } catch {
-      setPageError("Kupovina nije uspela.");
+      setPurchaseMessage("Kupovina je uspesno zavrsena. Oglas je oznacen kao prodat.");
+    } catch (error) {
+      setPageError(getErrorMessage(error, "Kupovina nije uspela."));
     } finally {
       setIsPurchasing(false);
     }
@@ -130,8 +143,8 @@ export const MarketplaceAdDetailsPage: React.FC<MarketplaceAdDetailsPageProps> =
         adTitle: ad.title,
       });
       navigate(`/chat/${conversation.id}`);
-    } catch {
-      setPageError("Failed to start chat.");
+    } catch (error) {
+      setPageError(getErrorMessage(error, "Pokretanje razgovora nije uspelo."));
     } finally {
       setIsStartingChat(false);
     }
@@ -144,7 +157,7 @@ export const MarketplaceAdDetailsPage: React.FC<MarketplaceAdDetailsPageProps> =
   if (isLoading) {
     return (
       <section className="card">
-        <p style={{ marginBottom: 0 }}>Loading ad details...</p>
+        <p style={{ marginBottom: 0 }}>Ucavanje detalja oglasa...</p>
       </section>
     );
   }
@@ -163,7 +176,7 @@ export const MarketplaceAdDetailsPage: React.FC<MarketplaceAdDetailsPageProps> =
   if (!ad) {
     return (
       <section className="card">
-        <p style={{ marginBottom: "16px" }}>Ad not found.</p>
+        <p style={{ marginBottom: "16px" }}>Oglas nije pronadjen.</p>
         <Link className="btn btn-standard" to="/marketplace/all">
           Nazad na oglase
         </Link>
@@ -205,7 +218,7 @@ export const MarketplaceAdDetailsPage: React.FC<MarketplaceAdDetailsPageProps> =
               letterSpacing: "0.06em",
             }}
           >
-            {ad.category?.name ?? "Marketplace ad"}
+            {ad.category?.name ?? "Marketplace"}
           </span>
         </div>
       </section>
@@ -322,7 +335,9 @@ export const MarketplaceAdDetailsPage: React.FC<MarketplaceAdDetailsPageProps> =
             <div className="list-item" style={{ cursor: "default" }}>
               <div>
                 <strong>Prodavac</strong>
-                <p style={{ marginBottom: 0 }}>{isOwner ? "Ovo je tvoj oglas." : ad.sellerId}</p>
+                <p style={{ marginBottom: 0 }}>
+                  {isOwner ? "Ovo je tvoj oglas." : formatUserDisplayName(seller ?? { username: ad.sellerId })}
+                </p>
               </div>
             </div>
             <div className="list-item" style={{ cursor: "default" }}>

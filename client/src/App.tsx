@@ -82,7 +82,7 @@ function App() {
           />
           <Route path="create" element={<MarketplaceCreatePage adAPI={ad_api} />} />
           <Route path="favorites" element={<MarketplaceFavoritesPage userAPI={user_api} adAPI={ad_api} />} />
-          <Route path="moderation" element={<MarketplaceModerationPage adAPI={ad_api} />} />
+          <Route path="moderation" element={<MarketplaceModerationPage adAPI={ad_api} userAPI={user_api} />} />
         </Route>
         <Route path="/" element={<AuthPage authAPI={auth_api} />} />
       </Routes>

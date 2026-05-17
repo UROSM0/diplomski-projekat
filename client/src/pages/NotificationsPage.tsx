@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { getErrorMessage } from "../api/shared/apiError";
 import { IUserAPI } from "../api/users/IUserAPI";
 import { DashboardNavbar } from "../components/dashboard/navbar/Navbar";
 import { useAuth } from "../hooks/useAuthHook";
@@ -32,8 +33,8 @@ export const NotificationsPage: React.FC<NotificationsPageProps> = ({ userAPI })
           unreadOnly: showUnreadOnly || undefined,
         });
         setNotifications(loadedNotifications);
-      } catch {
-        setPageError("Failed to load notifications.");
+      } catch (error) {
+        setPageError(getErrorMessage(error, "Ucavanje obavestenja nije uspelo."));
       } finally {
         setIsLoading(false);
       }
@@ -62,8 +63,8 @@ export const NotificationsPage: React.FC<NotificationsPageProps> = ({ userAPI })
           ? nextNotifications.filter((notification) => !notification.isRead)
           : nextNotifications;
       });
-    } catch {
-      setPageError("Failed to update notification.");
+    } catch (error) {
+      setPageError(getErrorMessage(error, "Izmena obavestenja nije uspela."));
     }
   };
 
@@ -85,8 +86,8 @@ export const NotificationsPage: React.FC<NotificationsPageProps> = ({ userAPI })
               isRead: true,
             }))
       );
-    } catch {
-      setPageError("Failed to mark notifications as read.");
+    } catch (error) {
+      setPageError(getErrorMessage(error, "Oznacavanje obavestenja nije uspelo."));
     } finally {
       setIsMarkingAll(false);
     }

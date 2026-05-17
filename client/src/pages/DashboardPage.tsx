@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { IAuditAPI } from "../api/audit/IAuditAPI";
+import { getErrorMessage } from "../api/shared/apiError";
 import { ITransactionAPI } from "../api/transactions/ITransactionAPI";
 import { IUserAPI } from "../api/users/IUserAPI";
 import { DashboardNavbar } from "../components/dashboard/navbar/Navbar";
@@ -72,8 +73,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ auditAPI, transact
           lastName: response.lastName ?? "",
           profileImage: response.profileImage ?? "",
         });
-      } catch (err) {
-        setError("Failed to load your profile.");
+      } catch (error) {
+        setError(getErrorMessage(error, "Ucavanje profila nije uspelo."));
       } finally {
         setIsLoading(false);
       }
@@ -105,8 +106,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ auditAPI, transact
             return drafts;
           }, {})
         );
-      } catch {
-        setAdminUsersError("Failed to load users for admin management.");
+      } catch (error) {
+        setAdminUsersError(getErrorMessage(error, "Ucavanje korisnika nije uspelo."));
       } finally {
         setIsAdminUsersLoading(false);
       }
@@ -143,8 +144,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ auditAPI, transact
             return drafts;
           }, {})
         );
-      } catch {
-        setTransactionsError("Failed to load transactions.");
+      } catch (error) {
+        setTransactionsError(getErrorMessage(error, "Ucavanje transakcija nije uspelo."));
       } finally {
         setIsTransactionsLoading(false);
       }
@@ -171,8 +172,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ auditAPI, transact
           service: auditServiceFilter || undefined,
         });
         setAuditLogs(result.items);
-      } catch {
-        setAuditError("Failed to load audit logs.");
+      } catch (error) {
+        setAuditError(getErrorMessage(error, "Ucavanje audit logova nije uspelo."));
       } finally {
         setIsAuditLoading(false);
       }
@@ -196,8 +197,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ auditAPI, transact
       const updatedUser = await userAPI.updateCurrentUser(token, profileForm);
       setUser(updatedUser);
       setActionMessage("Profile updated successfully.");
-    } catch {
-      setActionMessage("Profile update failed.");
+    } catch (error) {
+      setActionMessage(getErrorMessage(error, "Izmena profila nije uspela."));
     } finally {
       setIsSavingProfile(false);
     }
@@ -216,8 +217,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ auditAPI, transact
       });
       setUser(updatedUser);
       setActionMessage(`Wallet topped up successfully by ${Number(topUpAmount).toFixed(2)} RSD.`);
-    } catch {
-      setActionMessage("Wallet top-up failed.");
+    } catch (error) {
+      setActionMessage(getErrorMessage(error, "Doplata novcanika nije uspela."));
     } finally {
       setIsTopUpLoading(false);
     }
@@ -234,8 +235,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ auditAPI, transact
       await userAPI.changePassword(token, passwordForm);
       setPasswordForm({ currentPassword: "", newPassword: "" });
       setPasswordMessage("Password changed successfully.");
-    } catch {
-      setPasswordMessage("Password change failed.");
+    } catch (error) {
+      setPasswordMessage(getErrorMessage(error, "Promena lozinke nije uspela."));
     } finally {
       setIsChangingPassword(false);
     }
@@ -278,8 +279,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ auditAPI, transact
         },
       }));
       setAdminActionMessage(`Access updated for ${updatedUser.username}.`);
-    } catch {
-      setAdminActionMessage("Access update failed.");
+    } catch (error) {
+      setAdminActionMessage(getErrorMessage(error, "Izmena pristupa nije uspela."));
     }
   };
 
@@ -313,8 +314,8 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ auditAPI, transact
         current.map((transaction) => (transaction.id === transactionId ? updatedTransaction : transaction))
       );
       setTransactionsMessage("Rating saved successfully.");
-    } catch {
-      setTransactionsMessage("Failed to save rating.");
+    } catch (error) {
+      setTransactionsMessage(getErrorMessage(error, "Cuvanje ocene nije uspelo."));
     }
   };
 

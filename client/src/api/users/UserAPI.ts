@@ -9,6 +9,7 @@ import { TopUpBalanceDTO } from "../../models/users/TopUpBalanceDTO";
 import { UpdateUserAccessDTO } from "../../models/users/UpdateUserAccessDTO";
 import { UpdateUserProfileDTO } from "../../models/users/UpdateUserProfileDTO";
 import { UserDTO } from "../../models/users/UserDTO";
+import { createApiError } from "../shared/apiError";
 
 export class UserAPI implements IUserAPI {
   private readonly axiosInstance: AxiosInstance;
@@ -23,27 +24,39 @@ export class UserAPI implements IUserAPI {
   }
 
   async getCurrentUser(token: string): Promise<UserDTO> {
-    return (
-      await this.axiosInstance.get<UserDTO>("/users/me", {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-    ).data;
+    try {
+      return (
+        await this.axiosInstance.get<UserDTO>("/users/me", {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+      ).data;
+    } catch (error) {
+      throw createApiError(error, "Failed to load your profile.");
+    }
   }
 
   async getAllUsers(token: string): Promise<UserDTO[]> {
-    return (
-      await this.axiosInstance.get<UserDTO[]>("/users", {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-    ).data;
+    try {
+      return (
+        await this.axiosInstance.get<UserDTO[]>("/users", {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+      ).data;
+    } catch (error) {
+      throw createApiError(error, "Failed to load users for admin management.");
+    }
   }
 
   async getUserById(token: string, id: string): Promise<UserDTO> {
-    return (
-      await this.axiosInstance.get<UserDTO>(`/users/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-    ).data;
+    try {
+      return (
+        await this.axiosInstance.get<UserDTO>(`/users/${id}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+      ).data;
+    } catch (error) {
+      throw createApiError(error, "Failed to load your profile.");
+    }
   }
 
   async getFavorites(token: string): Promise<FavoriteDTO[]> {
@@ -58,78 +71,114 @@ export class UserAPI implements IUserAPI {
         return [];
       }
 
-      throw error;
+      throw createApiError(error, "Failed to update favorites.");
     }
   }
 
   async addFavorite(token: string, data: AddFavoriteDTO): Promise<FavoriteDTO> {
-    return (
-      await this.axiosInstance.post<FavoriteDTO>("/users/me/favorites", data, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-    ).data;
+    try {
+      return (
+        await this.axiosInstance.post<FavoriteDTO>("/users/me/favorites", data, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+      ).data;
+    } catch (error) {
+      throw createApiError(error, "Failed to update favorites.");
+    }
   }
 
   async removeFavorite(token: string, adId: string): Promise<void> {
-    await this.axiosInstance.delete(`/users/me/favorites/${adId}`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    try {
+      await this.axiosInstance.delete(`/users/me/favorites/${adId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch (error) {
+      throw createApiError(error, "Failed to update favorites.");
+    }
   }
 
   async getNotifications(token: string, query?: GetNotificationsQueryDTO): Promise<NotificationDTO[]> {
-    return (
-      await this.axiosInstance.get<NotificationDTO[]>("/users/me/notifications", {
-        headers: { Authorization: `Bearer ${token}` },
-        params: query,
-      })
-    ).data;
+    try {
+      return (
+        await this.axiosInstance.get<NotificationDTO[]>("/users/me/notifications", {
+          headers: { Authorization: `Bearer ${token}` },
+          params: query,
+        })
+      ).data;
+    } catch (error) {
+      throw createApiError(error, "Failed to load notifications.");
+    }
   }
 
   async markNotificationAsRead(token: string, notificationId: string): Promise<NotificationDTO> {
-    return (
-      await this.axiosInstance.patch<NotificationDTO>(`/users/me/notifications/${notificationId}/read`, undefined, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-    ).data;
+    try {
+      return (
+        await this.axiosInstance.patch<NotificationDTO>(`/users/me/notifications/${notificationId}/read`, undefined, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+      ).data;
+    } catch (error) {
+      throw createApiError(error, "Failed to update notification.");
+    }
   }
 
   async markAllNotificationsAsRead(token: string): Promise<void> {
-    await this.axiosInstance.post("/users/me/notifications/mark-all-read", undefined, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+    try {
+      await this.axiosInstance.post("/users/me/notifications/mark-all-read", undefined, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+    } catch (error) {
+      throw createApiError(error, "Failed to mark notifications as read.");
+    }
   }
 
   async changePassword(token: string, data: ChangePasswordDTO): Promise<void> {
-    await this.axiosInstance.post(
-      "/users/me/change-password",
-      data,
-      {
-        headers: { Authorization: `Bearer ${token}` },
-      }
-    );
+    try {
+      await this.axiosInstance.post(
+        "/users/me/change-password",
+        data,
+        {
+          headers: { Authorization: `Bearer ${token}` },
+        }
+      );
+    } catch (error) {
+      throw createApiError(error, "Password change failed.");
+    }
   }
 
   async updateUserAccess(token: string, id: string, data: UpdateUserAccessDTO): Promise<UserDTO> {
-    return (
-      await this.axiosInstance.patch<UserDTO>(`/users/${id}/access`, data, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-    ).data;
+    try {
+      return (
+        await this.axiosInstance.patch<UserDTO>(`/users/${id}/access`, data, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+      ).data;
+    } catch (error) {
+      throw createApiError(error, "Access update failed.");
+    }
   }
 
   async updateCurrentUser(token: string, data: UpdateUserProfileDTO): Promise<UserDTO> {
-    return (
-      await this.axiosInstance.patch<UserDTO>("/users/me", data, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-    ).data;
+    try {
+      return (
+        await this.axiosInstance.patch<UserDTO>("/users/me", data, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+      ).data;
+    } catch (error) {
+      throw createApiError(error, "Profile update failed.");
+    }
   }
 
   async topUpBalance(token: string, data: TopUpBalanceDTO): Promise<UserDTO> {
-    return (
-      await this.axiosInstance.post<UserDTO>("/users/me/top-up", data, {
-        headers: { Authorization: `Bearer ${token}` },
-      })
-    ).data;
+    try {
+      return (
+        await this.axiosInstance.post<UserDTO>("/users/me/top-up", data, {
+          headers: { Authorization: `Bearer ${token}` },
+        })
+      ).data;
+    } catch (error) {
+      throw createApiError(error, "Wallet top-up failed.");
+    }
   }
 }

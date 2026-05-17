@@ -1,21 +1,27 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Navigate } from "react-router-dom";
 import { IAdAPI } from "../../api/ads/IAdAPI";
+import { getErrorMessage } from "../../api/shared/apiError";
+import { IUserAPI } from "../../api/users/IUserAPI";
 import { useAuth } from "../../hooks/useAuthHook";
 import { AdDTO } from "../../models/ads/AdDTO";
 import { CategoryDTO } from "../../models/ads/CategoryDTO";
 import { ModerateAdDTO } from "../../models/ads/ModerateAdDTO";
+import { UserDTO } from "../../models/users/UserDTO";
+import { formatUserDisplayName } from "../../utils/userDisplay";
 
 type MarketplaceModerationPageProps = {
   adAPI: IAdAPI;
+  userAPI: IUserAPI;
 };
 
-export const MarketplaceModerationPage: React.FC<MarketplaceModerationPageProps> = ({ adAPI }) => {
+export const MarketplaceModerationPage: React.FC<MarketplaceModerationPageProps> = ({ adAPI, userAPI }) => {
   const { token, user } = useAuth();
   const isModerator = ["ADMIN", "MANAGER"].includes(user?.role?.toUpperCase() ?? "");
 
   const [categories, setCategories] = useState<CategoryDTO[]>([]);
   const [reviewAds, setReviewAds] = useState<AdDTO[]>([]);
+  const [sellerDirectory, setSellerDirectory] = useState<Record<string, UserDTO>>({});
   const [moderationDrafts, setModerationDrafts] = useState<Record<string, ModerateAdDTO>>({});
   const [isLoadingReviewAds, setIsLoadingReviewAds] = useState(true);
   const [pageError, setPageError] = useState("");
@@ -34,8 +40,8 @@ export const MarketplaceModerationPage: React.FC<MarketplaceModerationPageProps>
     const loadCategories = async () => {
       try {
         setCategories(await adAPI.getCategories());
-      } catch {
-        setPageError("Failed to load categories.");
+      } catch (error) {
+        setPageError(getErrorMessage(error, "Ucavanje kategorija nije uspelo."));
       }
     };
 
@@ -56,6 +62,7 @@ export const MarketplaceModerationPage: React.FC<MarketplaceModerationPageProps>
     });
 
     setReviewAds(response.items);
+    setSellerDirectory({});
     setModerationDrafts(
       response.items.reduce<Record<string, ModerateAdDTO>>((accumulator, ad) => {
         accumulator[ad.id] = {
@@ -79,8 +86,8 @@ export const MarketplaceModerationPage: React.FC<MarketplaceModerationPageProps>
 
       try {
         await refreshReviewAds();
-      } catch {
-        setPageError("Failed to load moderation queue.");
+      } catch (error) {
+        setPageError(getErrorMessage(error, "Ucavanje reda za moderaciju nije uspelo."));
       } finally {
         setIsLoadingReviewAds(false);
       }
@@ -88,6 +95,35 @@ export const MarketplaceModerationPage: React.FC<MarketplaceModerationPageProps>
 
     void loadReviewAds();
   }, [adAPI, isModerator, token]);
+
+  useEffect(() => {
+    const loadSellerDirectory = async () => {
+      if (!token || !reviewAds.length) {
+        setSellerDirectory({});
+        return;
+      }
+
+      const sellerIds = Array.from(new Set(reviewAds.map((ad) => ad.sellerId)));
+      const sellers = await Promise.allSettled(
+        sellerIds.map(async (sellerId) => ({
+          sellerId,
+          profile: await userAPI.getUserById(token, sellerId),
+        }))
+      );
+
+      const nextDirectory = sellers.reduce<Record<string, UserDTO>>((directory, result) => {
+        if (result.status === "fulfilled") {
+          directory[result.value.sellerId] = result.value.profile;
+        }
+
+        return directory;
+      }, {});
+
+      setSellerDirectory(nextDirectory);
+    };
+
+    void loadSellerDirectory();
+  }, [reviewAds, token, userAPI]);
 
   if (!isModerator) {
     return <Navigate to="/marketplace/all" replace />;
@@ -102,8 +138,8 @@ export const MarketplaceModerationPage: React.FC<MarketplaceModerationPageProps>
       await adAPI.moderateAd(token, adId, moderationDrafts[adId] ?? { status: "APPROVED" });
       await refreshReviewAds();
       setReviewMessage("Moderation decision saved.");
-    } catch {
-      setReviewMessage("Failed to save moderation decision.");
+    } catch (error) {
+      setReviewMessage(getErrorMessage(error, "Cuvanje odluke moderacije nije uspelo."));
     }
   };
 
@@ -129,7 +165,7 @@ export const MarketplaceModerationPage: React.FC<MarketplaceModerationPageProps>
         </div>
 
         {isLoadingReviewAds ? (
-          <p style={{ marginTop: "16px", marginBottom: 0 }}>Loading moderation queue...</p>
+          <p style={{ marginTop: "16px", marginBottom: 0 }}>Ucavanje reda za moderaciju...</p>
         ) : (
           <div
             style={{
@@ -149,7 +185,10 @@ export const MarketplaceModerationPage: React.FC<MarketplaceModerationPageProps>
                 return (
                   <article key={ad.id} className="card" style={{ background: "rgba(255,255,255,0.03)" }}>
                     <h3>{ad.title}</h3>
-                    <p><strong>Seller ID:</strong> {ad.sellerId}</p>
+                    <p>
+                      <strong>Prodavac:</strong>{" "}
+                      {formatUserDisplayName(sellerDirectory[ad.sellerId] ?? { username: ad.sellerId })}
+                    </p>
                     <p><strong>Category:</strong> {categoryMap[ad.categoryId] ?? ad.category?.name ?? "-"}</p>
                     <p><strong>Price:</strong> {formatPrice(ad.price)}</p>
                     <p>{ad.description}</p>
