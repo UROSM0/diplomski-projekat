@@ -7,6 +7,7 @@ import { CategoryDTO } from "../../models/ads/CategoryDTO";
 import { CreateAdDTO } from "../../models/ads/CreateAdDTO";
 import { CreateCategoryDTO } from "../../models/ads/CreateCategoryDTO";
 import { UpdateAdDTO } from "../../models/ads/UpdateAdDTO";
+import { formatAdStatusLabel } from "../../utils/userDisplay";
 
 type MarketplaceCreatePageProps = {
   adAPI: IAdAPI;
@@ -262,7 +263,7 @@ export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ ad
         categoryId: categories[0]?.id || "",
       });
       await refreshMyAds();
-      setFeedbackMessage("Ad created successfully and sent for moderation.");
+      setFeedbackMessage("Oglas je sacuvan i poslat na moderaciju.");
     } catch (error) {
       setFeedbackMessage(getErrorMessage(error, "Kreiranje oglasa nije uspelo."));
     } finally {
@@ -288,7 +289,7 @@ export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ ad
 
       await adAPI.updateAd(token, adId, payload);
       await refreshMyAds();
-      setFeedbackMessage("Ad updated and moved back to moderation.");
+      setFeedbackMessage("Oglas je izmenjen i vracen na moderaciju.");
     } catch (error) {
       setFeedbackMessage(getErrorMessage(error, "Izmena oglasa nije uspela."));
     }
@@ -302,7 +303,7 @@ export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ ad
     try {
       await adAPI.deleteAd(token, adId);
       await refreshMyAds();
-      setFeedbackMessage("Ad deleted successfully.");
+      setFeedbackMessage("Oglas je uspesno obrisan.");
     } catch (error) {
       setFeedbackMessage(getErrorMessage(error, "Brisanje oglasa nije uspelo."));
     }
@@ -329,7 +330,7 @@ export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ ad
         categoryId: current.categoryId || createdCategory.id,
       }));
       setCategoryForm({ name: "", description: "" });
-      setCategoryMessage("Category created successfully.");
+      setCategoryMessage("Kategorija je uspesno kreirana.");
     } catch (error) {
       setCategoryMessage(getErrorMessage(error, "Kreiranje kategorije nije uspelo."));
     } finally {
@@ -357,11 +358,10 @@ export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ ad
       >
         <article className="card">
           <h2 style={{ marginBottom: "8px" }}>Dodaj oglas</h2>
-          <p>Novi oglas ide na proveru pre nego sto postane vidljiv svima.</p>
           <form onSubmit={handleCreateAd} className="flex flex-col gap-3">
             <input
               type="text"
-              placeholder="Ad title"
+              placeholder="Naziv oglasa"
               value={createForm.title}
               onChange={(event) =>
                 setCreateForm((current) => ({
@@ -371,7 +371,7 @@ export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ ad
               }
             />
             <textarea
-              placeholder="Describe what you are selling"
+              placeholder="Opis oglasa"
               value={createForm.description}
               onChange={(event) =>
                 setCreateForm((current) => ({
@@ -384,7 +384,7 @@ export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ ad
               type="number"
               min="1"
               step="0.01"
-              placeholder="Price"
+              placeholder="Cena"
               value={createForm.price}
               onChange={(event) =>
                 setCreateForm((current) => ({
@@ -402,7 +402,7 @@ export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ ad
                 }))
               }
             >
-              <option value="">Select category</option>
+              <option value="">Izaberi kategoriju</option>
               {categories.map((category) => (
                 <option key={category.id} value={category.id}>
                   {category.name}
@@ -412,7 +412,7 @@ export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ ad
 
             <div className="flex flex-col gap-3">
               <label htmlFor="create-ad-images" className="btn btn-standard" style={{ justifyContent: "center" }}>
-                Browse images
+                Izaberi slike
               </label>
               <input
                 id="create-ad-images"
@@ -447,17 +447,17 @@ export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ ad
                   ))}
                 </div>
               ) : (
-                <p style={{ marginBottom: 0 }}>No image selected yet.</p>
+                <p style={{ marginBottom: 0 }}>Nijedna slika jos nije izabrana.</p>
               )}
               {createForm.imagePreviewUrls.length ? (
                 <button className="btn btn-ghost" type="button" onClick={handleRemoveCreateImages}>
-                  Remove selected images
+                  Ukloni izabrane slike
                 </button>
               ) : null}
             </div>
 
             <button className="btn btn-accent" type="submit" disabled={isCreatingAd || !categories.length}>
-              {isCreatingAd ? "Creating..." : "Create Ad"}
+              {isCreatingAd ? "Kreiranje..." : "Objavi oglas"}
             </button>
           </form>
           {feedbackMessage ? <p style={{ marginTop: "12px", marginBottom: 0 }}>{feedbackMessage}</p> : null}
@@ -466,11 +466,10 @@ export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ ad
         {isAdmin ? (
           <article className="card">
             <h2 style={{ marginBottom: "8px" }}>Dodaj kategoriju</h2>
-            <p>Admin moze da otvara nove kategorije za buduce oglase.</p>
             <form onSubmit={handleCreateCategory} className="flex flex-col gap-3">
               <input
                 type="text"
-                placeholder="Category name"
+                placeholder="Naziv kategorije"
                 value={categoryForm.name}
                 onChange={(event) =>
                   setCategoryForm((current) => ({
@@ -480,7 +479,7 @@ export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ ad
                 }
               />
               <textarea
-                placeholder="Short category description"
+                placeholder="Kratak opis kategorije"
                 value={categoryForm.description ?? ""}
                 onChange={(event) =>
                   setCategoryForm((current) => ({
@@ -490,7 +489,7 @@ export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ ad
                 }
               />
               <button className="btn btn-standard" type="submit" disabled={isCreatingCategory}>
-                {isCreatingCategory ? "Saving..." : "Create Category"}
+                {isCreatingCategory ? "Cuvanje..." : "Sacuvaj kategoriju"}
               </button>
             </form>
             {categoryMessage ? <p style={{ marginTop: "12px", marginBottom: 0 }}>{categoryMessage}</p> : null}
@@ -504,12 +503,12 @@ export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ ad
                   <div key={category.id} className="list-item" style={{ cursor: "default" }}>
                     <div>
                       <strong>{category.name}</strong>
-                      <p style={{ marginBottom: 0 }}>{category.description || "No description."}</p>
+                      <p style={{ marginBottom: 0 }}>{category.description || "Nema opisa."}</p>
                     </div>
                   </div>
                 ))
               ) : (
-                <p style={{ marginBottom: 0 }}>No categories yet.</p>
+                <p style={{ marginBottom: 0 }}>Jos nema kategorija.</p>
               )}
             </div>
           </article>
@@ -518,10 +517,9 @@ export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ ad
 
       <section className="card">
         <h2 style={{ marginBottom: "8px" }}>Moji oglasi</h2>
-        <p>Ovde menjas i brises svoje oglase. Svaka izmena vraca oglas na moderaciju.</p>
 
         {isLoadingMyAds ? (
-          <p style={{ marginTop: "16px", marginBottom: 0 }}>Loading your ads...</p>
+          <p style={{ marginTop: "16px", marginBottom: 0 }}>Ucavanje vasih oglasa...</p>
         ) : (
           <div
             style={{
@@ -562,16 +560,16 @@ export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ ad
                           fontSize: "12px",
                         }}
                       >
-                        {ad.status}
+                        {formatAdStatusLabel(ad.status)}
                       </span>
                     </div>
                     <p style={{ marginTop: "10px" }}>
-                      <strong>Category:</strong> {categoryMap[ad.categoryId] ?? ad.category?.name ?? "-"}
+                      <strong>Kategorija:</strong> {categoryMap[ad.categoryId] ?? ad.category?.name ?? "-"}
                     </p>
-                    <p><strong>Current Price:</strong> {formatPrice(ad.price)}</p>
+                    <p><strong>Trenutna cena:</strong> {formatPrice(ad.price)}</p>
                     {ad.moderationNote ? (
                       <p style={{ color: "var(--win11-accent)" }}>
-                        <strong>Moderation note:</strong> {ad.moderationNote}
+                        <strong>Napomena moderatora:</strong> {ad.moderationNote}
                       </p>
                     ) : null}
                     <div className="flex flex-col gap-3">
@@ -608,7 +606,7 @@ export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ ad
                           className="btn btn-standard"
                           style={{ justifyContent: "center" }}
                         >
-                          Browse replacement images
+                          Izaberi nove slike
                         </label>
                         <input
                           id={`edit-ad-images-${ad.id}`}
@@ -643,7 +641,7 @@ export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ ad
                             ))}
                           </div>
                         ) : (
-                          <p style={{ marginBottom: 0 }}>No image selected for this ad.</p>
+                          <p style={{ marginBottom: 0 }}>Za ovaj oglas nema izabranih slika.</p>
                         )}
                         <div className="flex gap-3" style={{ flexWrap: "wrap" }}>
                           {draft.imagePreviewUrls.length ? (
@@ -652,7 +650,7 @@ export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ ad
                               type="button"
                               onClick={() => handleClearEditSelection(ad.id)}
                             >
-                              Clear replacement selection
+                              Ponisti izbor novih slika
                             </button>
                           ) : null}
                           {ad.imageUrls.length && !draft.removeExistingImages ? (
@@ -661,7 +659,7 @@ export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ ad
                               type="button"
                               onClick={() => handleRemoveExistingImages(ad.id)}
                             >
-                              Remove current images
+                              Ukloni trenutne slike
                             </button>
                           ) : null}
                         </div>
@@ -669,17 +667,17 @@ export const MarketplaceCreatePage: React.FC<MarketplaceCreatePageProps> = ({ ad
                     </div>
                     <div className="flex gap-3" style={{ marginTop: "16px", flexWrap: "wrap" }}>
                       <button className="btn btn-accent" type="button" onClick={() => void handleUpdateAd(ad.id)}>
-                        Save Changes
+                        Sacuvaj izmene
                       </button>
                       <button className="btn btn-ghost" type="button" onClick={() => void handleDeleteAd(ad.id)}>
-                        Delete Ad
+                        Obrisi oglas
                       </button>
                     </div>
                   </article>
                 );
               })
             ) : (
-              <p style={{ marginBottom: 0 }}>You have not created any ads yet.</p>
+              <p style={{ marginBottom: 0 }}>Jos niste kreirali nijedan oglas.</p>
             )}
           </div>
         )}

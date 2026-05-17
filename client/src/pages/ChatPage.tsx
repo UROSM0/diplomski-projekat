@@ -165,21 +165,14 @@ export const ChatPage: React.FC<ChatPageProps> = ({ chatAPI, userAPI }) => {
   };
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background:
-          "radial-gradient(circle at top right, rgba(96,205,255,0.14), transparent 28%), linear-gradient(180deg, #181818 0%, #111111 100%)",
-      }}
-    >
+    <div className="page-shell">
       <DashboardNavbar userAPI={userAPI} activePage="chat" />
 
-      <main style={{ maxWidth: "1180px", margin: "0 auto", padding: "32px 20px 48px" }}>
-        <section className="card" style={{ marginBottom: "20px" }}>
+      <main className="page-main" style={{ maxWidth: "1180px" }}>
+        <section className="card page-hero page-hero-tight" style={{ marginBottom: "20px" }}>
           <div className="flex justify-between gap-3" style={{ alignItems: "center", flexWrap: "wrap" }}>
             <div>
-              <h1 style={{ marginBottom: "8px" }}>Chat</h1>
-              <p style={{ marginBottom: 0 }}>Razgovori se osvezavaju na svakih nekoliko sekundi.</p>
+              <h1 style={{ marginBottom: "8px" }}>Poruke</h1>
             </div>
             {pageError ? <p style={{ marginBottom: 0 }}>{pageError}</p> : null}
           </div>
@@ -263,8 +256,8 @@ export const ChatPage: React.FC<ChatPageProps> = ({ chatAPI, userAPI }) => {
                           maxWidth: "72%",
                           padding: "12px 14px",
                           borderRadius: "12px",
-                          background: isMine ? "var(--win11-accent)" : "rgba(255,255,255,0.06)",
-                          color: isMine ? "#000" : "var(--win11-text-primary)",
+                          background: isMine ? "var(--win11-accent)" : "var(--win11-surface-subtle)",
+                          color: isMine ? "#fffdf8" : "var(--win11-text-primary)",
                           border: "1px solid var(--win11-divider)",
                         }}
                       >

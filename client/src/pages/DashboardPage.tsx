@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { IAuditAPI } from "../api/audit/IAuditAPI";
 import { getErrorMessage } from "../api/shared/apiError";
 import { ITransactionAPI } from "../api/transactions/ITransactionAPI";
 import { IUserAPI } from "../api/users/IUserAPI";
@@ -9,18 +8,16 @@ import { useAuth } from "../hooks/useAuthHook";
 import { CreateRatingDTO } from "../models/transactions/CreateRatingDTO";
 import { TransactionDTO } from "../models/transactions/TransactionDTO";
 import { ChangePasswordDTO } from "../models/users/ChangePasswordDTO";
-import { UpdateUserAccessDTO } from "../models/users/UpdateUserAccessDTO";
 import { UserDTO } from "../models/users/UserDTO";
 import { UpdateUserProfileDTO } from "../models/users/UpdateUserProfileDTO";
-import { AuditLogDTO } from "../models/audit/AuditLogDTO";
+import { formatRoleLabel, formatUserStatusLabel } from "../utils/userDisplay";
 
 type DashboardPageProps = {
-  auditAPI: IAuditAPI;
   transactionAPI: ITransactionAPI;
   userAPI: IUserAPI;
 };
 
-export const DashboardPage: React.FC<DashboardPageProps> = ({ auditAPI, transactionAPI, userAPI }) => {
+export const DashboardPage: React.FC<DashboardPageProps> = ({ transactionAPI, userAPI }) => {
   const { token, user: authUser } = useAuth();
   const isAdmin = authUser?.role?.toUpperCase() === "ADMIN";
   const [user, setUser] = useState<UserDTO | null>(null);
@@ -41,22 +38,12 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ auditAPI, transact
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isTopUpLoading, setIsTopUpLoading] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const [adminUsers, setAdminUsers] = useState<UserDTO[]>([]);
-  const [adminUsersError, setAdminUsersError] = useState("");
-  const [isAdminUsersLoading, setIsAdminUsersLoading] = useState(false);
-  const [adminActionMessage, setAdminActionMessage] = useState("");
-  const [accessDrafts, setAccessDrafts] = useState<Record<string, UpdateUserAccessDTO>>({});
   const [purchaseTransactions, setPurchaseTransactions] = useState<TransactionDTO[]>([]);
   const [saleTransactions, setSaleTransactions] = useState<TransactionDTO[]>([]);
   const [isTransactionsLoading, setIsTransactionsLoading] = useState(false);
   const [transactionsError, setTransactionsError] = useState("");
   const [transactionsMessage, setTransactionsMessage] = useState("");
   const [ratingDrafts, setRatingDrafts] = useState<Record<string, { score: string; comment: string }>>({});
-  const [auditLogs, setAuditLogs] = useState<AuditLogDTO[]>([]);
-  const [auditActionFilter, setAuditActionFilter] = useState("");
-  const [auditServiceFilter, setAuditServiceFilter] = useState("");
-  const [auditError, setAuditError] = useState("");
-  const [isAuditLoading, setIsAuditLoading] = useState(false);
 
   useEffect(() => {
     const fetchCurrentUser = async () => {
@@ -82,39 +69,6 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ auditAPI, transact
 
     void fetchCurrentUser();
   }, [token, userAPI]);
-
-  useEffect(() => {
-    const fetchAdminUsers = async () => {
-      if (!token || !isAdmin) {
-        setAdminUsers([]);
-        setAccessDrafts({});
-        return;
-      }
-
-      setIsAdminUsersLoading(true);
-      setAdminUsersError("");
-
-      try {
-        const users = await userAPI.getAllUsers(token);
-        setAdminUsers(users);
-        setAccessDrafts(
-          users.reduce<Record<string, UpdateUserAccessDTO>>((drafts, currentUser) => {
-            drafts[currentUser.id] = {
-              role: currentUser.role,
-              status: currentUser.status,
-            };
-            return drafts;
-          }, {})
-        );
-      } catch (error) {
-        setAdminUsersError(getErrorMessage(error, "Ucavanje korisnika nije uspelo."));
-      } finally {
-        setIsAdminUsersLoading(false);
-      }
-    };
-
-    void fetchAdminUsers();
-  }, [isAdmin, token, userAPI]);
 
   useEffect(() => {
     const fetchTransactions = async () => {
@@ -154,37 +108,9 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ auditAPI, transact
     void fetchTransactions();
   }, [token, transactionAPI]);
 
-  useEffect(() => {
-    const fetchAuditLogs = async () => {
-      if (!token || !isAdmin) {
-        setAuditLogs([]);
-        return;
-      }
-
-      setIsAuditLoading(true);
-      setAuditError("");
-
-      try {
-        const result = await auditAPI.getLogs(token, {
-          page: 1,
-          limit: 20,
-          action: auditActionFilter || undefined,
-          service: auditServiceFilter || undefined,
-        });
-        setAuditLogs(result.items);
-      } catch (error) {
-        setAuditError(getErrorMessage(error, "Ucavanje audit logova nije uspelo."));
-      } finally {
-        setIsAuditLoading(false);
-      }
-    };
-
-    void fetchAuditLogs();
-  }, [auditAPI, auditActionFilter, auditServiceFilter, isAdmin, token]);
-
   const displayName = user
     ? `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.username
-    : authUser?.username ?? "User";
+    : authUser?.username ?? "Korisnik";
 
   const handleProfileSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
@@ -196,7 +122,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ auditAPI, transact
     try {
       const updatedUser = await userAPI.updateCurrentUser(token, profileForm);
       setUser(updatedUser);
-      setActionMessage("Profile updated successfully.");
+      setActionMessage("Profil je uspesno sacuvan.");
     } catch (error) {
       setActionMessage(getErrorMessage(error, "Izmena profila nije uspela."));
     } finally {
@@ -216,7 +142,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ auditAPI, transact
         amount: Number(topUpAmount),
       });
       setUser(updatedUser);
-      setActionMessage(`Wallet topped up successfully by ${Number(topUpAmount).toFixed(2)} RSD.`);
+      setActionMessage(`Novcanik je dopunjen za ${Number(topUpAmount).toFixed(2)} RSD.`);
     } catch (error) {
       setActionMessage(getErrorMessage(error, "Doplata novcanika nije uspela."));
     } finally {
@@ -234,53 +160,11 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ auditAPI, transact
     try {
       await userAPI.changePassword(token, passwordForm);
       setPasswordForm({ currentPassword: "", newPassword: "" });
-      setPasswordMessage("Password changed successfully.");
+      setPasswordMessage("Lozinka je uspesno promenjena.");
     } catch (error) {
       setPasswordMessage(getErrorMessage(error, "Promena lozinke nije uspela."));
     } finally {
       setIsChangingPassword(false);
-    }
-  };
-
-  const handleAccessDraftChange = (
-    userId: string,
-    field: keyof UpdateUserAccessDTO,
-    value: string
-  ) => {
-    setAccessDrafts((current) => ({
-      ...current,
-      [userId]: {
-        ...(current[userId] ?? {}),
-        [field]: value,
-      },
-    }));
-  };
-
-  const handleAccessSave = async (targetUserId: string) => {
-    if (!token) return;
-
-    setAdminActionMessage("");
-
-    try {
-      const updatedUser = await userAPI.updateUserAccess(
-        token,
-        targetUserId,
-        accessDrafts[targetUserId] ?? {}
-      );
-
-      setAdminUsers((current) =>
-        current.map((listedUser) => (listedUser.id === targetUserId ? updatedUser : listedUser))
-      );
-      setAccessDrafts((current) => ({
-        ...current,
-        [targetUserId]: {
-          role: updatedUser.role,
-          status: updatedUser.status,
-        },
-      }));
-      setAdminActionMessage(`Access updated for ${updatedUser.username}.`);
-    } catch (error) {
-      setAdminActionMessage(getErrorMessage(error, "Izmena pristupa nije uspela."));
     }
   };
 
@@ -313,7 +197,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ auditAPI, transact
       setPurchaseTransactions((current) =>
         current.map((transaction) => (transaction.id === transactionId ? updatedTransaction : transaction))
       );
-      setTransactionsMessage("Rating saved successfully.");
+      setTransactionsMessage("Ocena je uspesno sacuvana.");
     } catch (error) {
       setTransactionsMessage(getErrorMessage(error, "Cuvanje ocene nije uspelo."));
     }
@@ -322,57 +206,15 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ auditAPI, transact
   const formatPrice = (value: number) => `${value.toFixed(2)} RSD`;
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background:
-          "radial-gradient(circle at top right, rgba(96,205,255,0.18), transparent 28%), linear-gradient(180deg, #181818 0%, #111111 100%)",
-      }}
-    >
+    <div className="page-shell">
       <DashboardNavbar userAPI={userAPI} activePage="dashboard" />
 
-      <main
-        style={{
-          maxWidth: "1100px",
-          margin: "0 auto",
-          padding: "32px 20px 48px",
-        }}
-      >
-        <section
-          className="card"
-          style={{
-            padding: "32px",
-            marginBottom: "24px",
-            background:
-              "linear-gradient(135deg, rgba(96,205,255,0.16) 0%, rgba(45,45,45,0.78) 45%, rgba(30,30,30,0.88) 100%)",
-          }}
-        >
+      <main className="page-main" style={{ maxWidth: "1120px" }}>
+        <section className="card page-hero" style={{ marginBottom: "24px" }}>
           <div className="flex justify-between gap-4" style={{ flexWrap: "wrap" }}>
             <div style={{ maxWidth: "620px" }}>
-              <div
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "8px",
-                  padding: "6px 12px",
-                  borderRadius: "999px",
-                  background: "rgba(255,255,255,0.06)",
-                  border: "1px solid var(--win11-divider)",
-                  marginBottom: "16px",
-                  fontSize: "12px",
-                  color: "var(--win11-text-secondary)",
-                  textTransform: "uppercase",
-                  letterSpacing: "0.08em",
-                }}
-              >
-                Online Trading Platform
-              </div>
-              <h1 style={{ marginBottom: "12px" }}>Welcome, {displayName}</h1>
-              <p style={{ fontSize: "15px", maxWidth: "56ch", marginBottom: 0 }}>
-                Authentication is now connected end-to-end. This dashboard is our first
-                authenticated screen and the base we will extend with profile, wallet,
-                ads, transactions, chat, and admin workflows.
-              </p>
+              <div className="hero-kicker">Nalog</div>
+              <h1 style={{ marginBottom: "12px" }}>Zdravo, {displayName}</h1>
             </div>
 
             <div
@@ -380,31 +222,30 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ auditAPI, transact
               style={{
                 minWidth: "250px",
                 padding: "20px",
-                background: "rgba(0,0,0,0.22)",
+                background: "var(--win11-surface-elevated)",
+                border: "1px solid rgba(92, 79, 62, 0.08)",
               }}
             >
-              <h3 style={{ marginBottom: "12px" }}>Session Snapshot</h3>
+              <h3 style={{ marginBottom: "12px" }}>Pregled naloga</h3>
               <p style={{ marginBottom: "8px" }}>
-                <strong>Username:</strong> {authUser?.username ?? "-"}
+                <strong>Korisnicko ime:</strong> {authUser?.username ?? "-"}
               </p>
               <p style={{ marginBottom: "8px" }}>
-                <strong>Role:</strong> {authUser?.role ?? "-"}
+                <strong>Rola:</strong> {formatRoleLabel(authUser?.role)}
               </p>
-              <p style={{ marginBottom: 0 }}>
-                <strong>Status:</strong> {user?.status ?? "Loading..."}
-              </p>
+              <p style={{ marginBottom: 0 }}><strong>Status:</strong> {formatUserStatusLabel(user?.status ?? "Ucavanje...")}</p>
             </div>
           </div>
           <div className="flex gap-3" style={{ marginTop: "24px", flexWrap: "wrap" }}>
             <Link className="btn btn-accent" to="/marketplace/all">
-              Open Marketplace
+              Idi na oglase
             </Link>
           </div>
         </section>
 
         {error ? (
           <section className="card" style={{ marginBottom: "24px" }}>
-            <h3>Profile Loading Error</h3>
+            <h3>Greska pri ucitavanju profila</h3>
             <p>{error}</p>
           </section>
         ) : null}
@@ -424,23 +265,36 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ auditAPI, transact
           }}
         >
           <article className="card">
-            <h3>Role</h3>
-            <p style={{ marginBottom: 0 }}>{user?.role ?? authUser?.role ?? "-"}</p>
+            <h3>Rola</h3>
+            <p style={{ marginBottom: 0 }}>{formatRoleLabel(user?.role ?? authUser?.role)}</p>
           </article>
           <article className="card">
-            <h3>Account Status</h3>
-            <p style={{ marginBottom: 0 }}>{user?.status ?? (isLoading ? "Loading..." : "-")}</p>
+            <h3>Status naloga</h3>
+            <p style={{ marginBottom: 0 }}>{formatUserStatusLabel(user?.status ?? (isLoading ? "Ucavanje..." : "-"))}</p>
           </article>
           <article className="card">
-            <h3>Wallet Balance</h3>
+            <h3>Stanje novcanika</h3>
             <p style={{ marginBottom: 0 }}>
               {typeof user?.balance === "number" ? `${user.balance.toFixed(2)} RSD` : "0.00 RSD"}
             </p>
           </article>
           <article className="card">
-            <h3>User ID</h3>
+            <h3>ID korisnika</h3>
             <p style={{ marginBottom: 0, wordBreak: "break-all" }}>{user?.id ?? authUser?.id ?? "-"}</p>
           </article>
+          {isAdmin ? (
+            <article className="card">
+              <h3>Admin alati</h3>
+              <div className="flex gap-2" style={{ flexWrap: "wrap" }}>
+                <Link className="btn btn-standard" to="/admin/users">
+                  Korisnici
+                </Link>
+                <Link className="btn btn-standard" to="/admin/audit">
+                  Aktivnosti
+                </Link>
+              </div>
+            </article>
+          ) : null}
         </section>
 
         <section
@@ -451,18 +305,18 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ auditAPI, transact
           }}
         >
           <article className="card">
-            <h3>Profile</h3>
-            <p><strong>Email:</strong> {user?.email ?? "-"}</p>
-            <p><strong>First name:</strong> {user?.firstName ?? "-"}</p>
-            <p style={{ marginBottom: 0 }}><strong>Last name:</strong> {user?.lastName ?? "-"}</p>
+            <h3>Profil</h3>
+            <p><strong>Imejl:</strong> {user?.email ?? "-"}</p>
+            <p><strong>Ime:</strong> {user?.firstName ?? "-"}</p>
+            <p style={{ marginBottom: 0 }}><strong>Prezime:</strong> {user?.lastName ?? "-"}</p>
           </article>
 
           <article className="card">
-            <h3>Edit Profile</h3>
+            <h3>Izmena profila</h3>
             <form onSubmit={handleProfileSubmit} className="flex flex-col gap-3">
               <input
                 type="text"
-                placeholder="First name"
+                placeholder="Ime"
                 value={profileForm.firstName ?? ""}
                 onChange={(event) =>
                   setProfileForm((current) => ({ ...current, firstName: event.target.value }))
@@ -470,7 +324,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ auditAPI, transact
               />
               <input
                 type="text"
-                placeholder="Last name"
+                placeholder="Prezime"
                 value={profileForm.lastName ?? ""}
                 onChange={(event) =>
                   setProfileForm((current) => ({ ...current, lastName: event.target.value }))
@@ -478,21 +332,20 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ auditAPI, transact
               />
               <input
                 type="url"
-                placeholder="Profile image URL"
+                placeholder="Link do profilne slike"
                 value={profileForm.profileImage ?? ""}
                 onChange={(event) =>
                   setProfileForm((current) => ({ ...current, profileImage: event.target.value }))
                 }
               />
               <button className="btn btn-accent" type="submit" disabled={isSavingProfile}>
-                {isSavingProfile ? "Saving..." : "Save Profile"}
+                {isSavingProfile ? "Cuvanje..." : "Sacuvaj profil"}
               </button>
             </form>
           </article>
 
           <article className="card">
-            <h3>Wallet Top-Up</h3>
-            <p>Add funds to your in-app wallet for future purchases.</p>
+            <h3>Doplata novcanika</h3>
             <form onSubmit={handleTopUpSubmit} className="flex flex-col gap-3">
               <input
                 type="number"
@@ -502,18 +355,17 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ auditAPI, transact
                 onChange={(event) => setTopUpAmount(event.target.value)}
               />
               <button className="btn btn-accent" type="submit" disabled={isTopUpLoading}>
-                {isTopUpLoading ? "Processing..." : "Top Up Wallet"}
+                {isTopUpLoading ? "Obrada..." : "Dopuni novcanik"}
               </button>
             </form>
           </article>
 
           <article className="card">
-            <h3>Change Password</h3>
-            <p>Use your current password before setting a new one.</p>
+            <h3>Promena lozinke</h3>
             <form onSubmit={handlePasswordSubmit} className="flex flex-col gap-3">
               <input
                 type="password"
-                placeholder="Current password"
+                placeholder="Trenutna lozinka"
                 value={passwordForm.currentPassword}
                 onChange={(event) =>
                   setPasswordForm((current) => ({
@@ -524,7 +376,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ auditAPI, transact
               />
               <input
                 type="password"
-                placeholder="New password"
+                placeholder="Nova lozinka"
                 value={passwordForm.newPassword}
                 onChange={(event) =>
                   setPasswordForm((current) => ({
@@ -534,7 +386,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ auditAPI, transact
                 }
               />
               <button className="btn btn-accent" type="submit" disabled={isChangingPassword}>
-                {isChangingPassword ? "Updating..." : "Change Password"}
+                {isChangingPassword ? "Azuriranje..." : "Promeni lozinku"}
               </button>
             </form>
             {passwordMessage ? <p style={{ marginTop: "12px", marginBottom: 0 }}>{passwordMessage}</p> : null}
@@ -547,17 +399,14 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ auditAPI, transact
             style={{ alignItems: "center", flexWrap: "wrap", marginBottom: "20px" }}
           >
             <div>
-              <h2 style={{ marginBottom: "8px" }}>Transaction History</h2>
-              <p style={{ marginBottom: 0 }}>
-                Ovde pratiš svoje kupovine, prodaje i ostavljaš ocene nakon uspešne kupovine.
-              </p>
+              <h2 style={{ marginBottom: "8px" }}>Istorija transakcija</h2>
             </div>
             {transactionsMessage ? <p style={{ marginBottom: 0 }}>{transactionsMessage}</p> : null}
           </div>
 
           {transactionsError ? <p>{transactionsError}</p> : null}
           {isTransactionsLoading ? (
-            <p style={{ marginBottom: 0 }}>Loading transactions...</p>
+            <p style={{ marginBottom: 0 }}>Ucavanje transakcija...</p>
           ) : (
             <div
               style={{
@@ -566,7 +415,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ auditAPI, transact
                 gap: "16px",
               }}
             >
-              <article className="card" style={{ background: "rgba(255,255,255,0.03)" }}>
+              <article className="card" style={{ background: "var(--win11-surface-subtle)" }}>
                 <h3 style={{ marginBottom: "8px" }}>Moje kupovine</h3>
                 {purchaseTransactions.length ? (
                   <div className="flex flex-col gap-4">
@@ -574,7 +423,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ auditAPI, transact
                       <div
                         key={transaction.id}
                         className="card"
-                        style={{ background: "rgba(0,0,0,0.18)", padding: "16px" }}
+                        style={{ background: "var(--win11-surface-elevated)", padding: "16px" }}
                       >
                         <div className="flex gap-3" style={{ alignItems: "center", marginBottom: "12px" }}>
                           {transaction.adImageUrl ? (
@@ -619,7 +468,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ auditAPI, transact
                               <option value="1">1</option>
                             </select>
                             <textarea
-                              placeholder="Comment about the seller"
+                              placeholder="Dodaj komentar o prodavcu"
                               value={ratingDrafts[transaction.id]?.comment ?? ""}
                               onChange={(event) =>
                                 handleRatingDraftChange(transaction.id, "comment", event.target.value)
@@ -630,7 +479,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ auditAPI, transact
                               type="button"
                               onClick={() => void handleCreateRating(transaction.id)}
                             >
-                              Save Rating
+                              Sacuvaj ocenu
                             </button>
                           </div>
                         )}
@@ -642,7 +491,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ auditAPI, transact
                 )}
               </article>
 
-              <article className="card" style={{ background: "rgba(255,255,255,0.03)" }}>
+              <article className="card" style={{ background: "var(--win11-surface-subtle)" }}>
                 <h3 style={{ marginBottom: "8px" }}>Moje prodaje</h3>
                 {saleTransactions.length ? (
                   <div className="flex flex-col gap-4">
@@ -650,7 +499,7 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ auditAPI, transact
                       <div
                         key={transaction.id}
                         className="card"
-                        style={{ background: "rgba(0,0,0,0.18)", padding: "16px" }}
+                        style={{ background: "var(--win11-surface-elevated)", padding: "16px" }}
                       >
                         <div className="flex gap-3" style={{ alignItems: "center", marginBottom: "12px" }}>
                           {transaction.adImageUrl ? (
@@ -690,149 +539,6 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ auditAPI, transact
           )}
         </section>
 
-        {isAdmin ? (
-          <>
-          <section className="card" style={{ marginTop: "24px" }}>
-            <div
-              className="flex justify-between gap-4"
-              style={{ alignItems: "center", flexWrap: "wrap", marginBottom: "20px" }}
-            >
-              <div>
-                <h2 style={{ marginBottom: "8px" }}>Admin User Management</h2>
-                <p style={{ marginBottom: 0 }}>
-                  Review all registered users and update their roles or statuses.
-                </p>
-              </div>
-              {adminActionMessage ? <p style={{ marginBottom: 0 }}>{adminActionMessage}</p> : null}
-            </div>
-
-            {adminUsersError ? <p>{adminUsersError}</p> : null}
-            {isAdminUsersLoading ? (
-              <p style={{ marginBottom: 0 }}>Loading users...</p>
-            ) : (
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
-                  gap: "16px",
-                }}
-              >
-                {adminUsers.map((listedUser) => (
-                  <article
-                    key={listedUser.id}
-                    className="card"
-                    style={{ background: "rgba(255,255,255,0.03)" }}
-                  >
-                    <h3 style={{ marginBottom: "8px" }}>{listedUser.username}</h3>
-                    <p style={{ marginBottom: "6px" }}>
-                      <strong>Email:</strong> {listedUser.email}
-                    </p>
-                    <p style={{ marginBottom: "14px" }}>
-                      <strong>ID:</strong> {listedUser.id}
-                    </p>
-
-                    <div className="flex flex-col gap-3">
-                      <label className="flex flex-col gap-2">
-                        <span>Role</span>
-                        <select
-                          value={accessDrafts[listedUser.id]?.role ?? listedUser.role}
-                          onChange={(event) =>
-                            handleAccessDraftChange(listedUser.id, "role", event.target.value)
-                          }
-                        >
-                          <option value="USER">USER</option>
-                          <option value="MANAGER">MANAGER</option>
-                          <option value="ADMIN">ADMIN</option>
-                        </select>
-                      </label>
-
-                      <label className="flex flex-col gap-2">
-                        <span>Status</span>
-                        <select
-                          value={accessDrafts[listedUser.id]?.status ?? listedUser.status}
-                          onChange={(event) =>
-                            handleAccessDraftChange(listedUser.id, "status", event.target.value)
-                          }
-                        >
-                          <option value="ACTIVE">ACTIVE</option>
-                          <option value="INACTIVE">INACTIVE</option>
-                          <option value="BLOCKED">BLOCKED</option>
-                        </select>
-                      </label>
-
-                      <button
-                        className="btn btn-accent"
-                        type="button"
-                        onClick={() => void handleAccessSave(listedUser.id)}
-                        disabled={listedUser.id === authUser?.id}
-                      >
-                        {listedUser.id === authUser?.id ? "Cannot Edit Yourself" : "Save Access"}
-                      </button>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            )}
-          </section>
-          <section className="card" style={{ marginTop: "24px" }}>
-            <div
-              className="flex justify-between gap-4"
-              style={{ alignItems: "center", flexWrap: "wrap", marginBottom: "20px" }}
-            >
-              <div>
-                <h2 style={{ marginBottom: "8px" }}>Audit Log</h2>
-                <p style={{ marginBottom: 0 }}>Recent gateway-recorded system actions.</p>
-              </div>
-              <div className="flex gap-3" style={{ flexWrap: "wrap" }}>
-                <input
-                  type="text"
-                  placeholder="Action"
-                  value={auditActionFilter}
-                  onChange={(event) => setAuditActionFilter(event.target.value)}
-                  style={{ maxWidth: "160px" }}
-                />
-                <input
-                  type="text"
-                  placeholder="Service"
-                  value={auditServiceFilter}
-                  onChange={(event) => setAuditServiceFilter(event.target.value)}
-                  style={{ maxWidth: "160px" }}
-                />
-              </div>
-            </div>
-
-            {auditError ? <p>{auditError}</p> : null}
-            {isAuditLoading ? (
-              <p style={{ marginBottom: 0 }}>Loading audit logs...</p>
-            ) : auditLogs.length ? (
-              <div className="flex flex-col gap-3">
-                {auditLogs.map((log) => (
-                  <article
-                    key={log.id}
-                    className="card"
-                    style={{ background: "rgba(255,255,255,0.03)", padding: "16px" }}
-                  >
-                    <div className="flex justify-between gap-3" style={{ flexWrap: "wrap" }}>
-                      <div>
-                        <strong>{log.action}</strong>
-                        <p style={{ margin: "6px 0" }}>{log.description}</p>
-                        <p style={{ marginBottom: 0, color: "var(--win11-text-tertiary)" }}>
-                          {log.service} {log.userId ? `- ${log.userId}` : ""}
-                        </p>
-                      </div>
-                      <span style={{ color: "var(--win11-text-tertiary)", fontSize: "12px" }}>
-                        {new Date(log.createdAt).toLocaleString()}
-                      </span>
-                    </div>
-                  </article>
-                ))}
-              </div>
-            ) : (
-              <p style={{ marginBottom: 0 }}>No audit logs yet.</p>
-            )}
-          </section>
-          </>
-        ) : null}
       </main>
     </div>
   );

@@ -137,7 +137,7 @@ export const MarketplaceModerationPage: React.FC<MarketplaceModerationPageProps>
     try {
       await adAPI.moderateAd(token, adId, moderationDrafts[adId] ?? { status: "APPROVED" });
       await refreshReviewAds();
-      setReviewMessage("Moderation decision saved.");
+      setReviewMessage("Odluka moderacije je sacuvana.");
     } catch (error) {
       setReviewMessage(getErrorMessage(error, "Cuvanje odluke moderacije nije uspelo."));
     }
@@ -156,10 +156,7 @@ export const MarketplaceModerationPage: React.FC<MarketplaceModerationPageProps>
       <section className="card">
         <div className="flex justify-between gap-4" style={{ alignItems: "center", flexWrap: "wrap" }}>
           <div>
-            <h2 style={{ marginBottom: "8px" }}>Moderation Queue</h2>
-            <p style={{ marginBottom: 0 }}>
-              Ovde pregledas sve oglase koji cekaju odobravanje ili odbijanje.
-            </p>
+            <h2 style={{ marginBottom: "8px" }}>Red za moderaciju</h2>
           </div>
           {reviewMessage ? <p style={{ marginBottom: 0 }}>{reviewMessage}</p> : null}
         </div>
@@ -189,8 +186,8 @@ export const MarketplaceModerationPage: React.FC<MarketplaceModerationPageProps>
                       <strong>Prodavac:</strong>{" "}
                       {formatUserDisplayName(sellerDirectory[ad.sellerId] ?? { username: ad.sellerId })}
                     </p>
-                    <p><strong>Category:</strong> {categoryMap[ad.categoryId] ?? ad.category?.name ?? "-"}</p>
-                    <p><strong>Price:</strong> {formatPrice(ad.price)}</p>
+                    <p><strong>Kategorija:</strong> {categoryMap[ad.categoryId] ?? ad.category?.name ?? "-"}</p>
+                    <p><strong>Cena:</strong> {formatPrice(ad.price)}</p>
                     <p>{ad.description}</p>
                     <div className="flex flex-col gap-3">
                       <select
@@ -205,11 +202,11 @@ export const MarketplaceModerationPage: React.FC<MarketplaceModerationPageProps>
                           }))
                         }
                       >
-                        <option value="APPROVED">APPROVED</option>
-                        <option value="REJECTED">REJECTED</option>
+                        <option value="APPROVED">ODOBRI</option>
+                        <option value="REJECTED">ODBIJ</option>
                       </select>
                       <textarea
-                        placeholder="Moderation note"
+                        placeholder="Napomena moderatora"
                         value={moderationDraft.moderationNote ?? ""}
                         onChange={(event) =>
                           setModerationDrafts((current) => ({
@@ -226,14 +223,14 @@ export const MarketplaceModerationPage: React.FC<MarketplaceModerationPageProps>
                         type="button"
                         onClick={() => void handleModerationSave(ad.id)}
                       >
-                        Save Moderation
+                        Sacuvaj odluku
                       </button>
                     </div>
                   </article>
                 );
               })
             ) : (
-              <p style={{ marginBottom: 0 }}>No pending ads at the moment.</p>
+              <p style={{ marginBottom: 0 }}>Trenutno nema oglasa koji cekaju moderaciju.</p>
             )}
           </div>
         )}

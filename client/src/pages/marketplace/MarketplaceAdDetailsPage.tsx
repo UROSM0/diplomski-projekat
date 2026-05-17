@@ -8,7 +8,7 @@ import { IUserAPI } from "../../api/users/IUserAPI";
 import { useAuth } from "../../hooks/useAuthHook";
 import { AdDTO } from "../../models/ads/AdDTO";
 import { UserDTO } from "../../models/users/UserDTO";
-import { formatUserDisplayName } from "../../utils/userDisplay";
+import { formatAdStatusLabel, formatUserDisplayName } from "../../utils/userDisplay";
 
 type MarketplaceAdDetailsPageProps = {
   adAPI: IAdAPI;
@@ -218,7 +218,7 @@ export const MarketplaceAdDetailsPage: React.FC<MarketplaceAdDetailsPageProps> =
               letterSpacing: "0.06em",
             }}
           >
-            {ad.category?.name ?? "Marketplace"}
+            {ad.category?.name ?? "Oglas"}
           </span>
         </div>
       </section>
@@ -256,7 +256,7 @@ export const MarketplaceAdDetailsPage: React.FC<MarketplaceAdDetailsPageProps> =
                 marginBottom: "16px",
               }}
             >
-              <span style={{ color: "var(--win11-text-tertiary)" }}>No image</span>
+              <span style={{ color: "var(--win11-text-tertiary)" }}>Nema slike</span>
             </div>
           )}
 
@@ -311,7 +311,7 @@ export const MarketplaceAdDetailsPage: React.FC<MarketplaceAdDetailsPageProps> =
               marginBottom: "10px",
             }}
           >
-            {ad.category?.name ?? "Marketplace"}
+            {ad.category?.name ?? "Oglas"}
           </p>
           <h1 style={{ marginBottom: "10px" }}>{ad.title}</h1>
           <p
@@ -343,7 +343,7 @@ export const MarketplaceAdDetailsPage: React.FC<MarketplaceAdDetailsPageProps> =
             <div className="list-item" style={{ cursor: "default" }}>
               <div>
                 <strong>Status</strong>
-                <p style={{ marginBottom: 0 }}>{ad.status}</p>
+                <p style={{ marginBottom: 0 }}>{formatAdStatusLabel(ad.status)}</p>
               </div>
             </div>
           </div>

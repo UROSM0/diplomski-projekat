@@ -38,25 +38,30 @@ export const LoginForm: React.FC<LoginFormProps> = ({ authAPI }) => {
         login(response.token, response.refreshToken);
         navigate("/dashboard");
       } else {
-        setError(response.message || "Login failed. Please try again.");
+        setError(response.message || "Prijava nije uspela. Pokusajte ponovo.");
       }
     } catch (err: any) {
-      setError(err || "An error occurred. Please try again.");
+      setError(err?.message || "Doslo je do greske. Pokusajte ponovo.");
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    if(isAuthenticated)
-        navigate("/dashboard");
-  })
+    if (isAuthenticated) {
+      navigate("/dashboard");
+    }
+  }, [isAuthenticated, navigate]);
 
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+      <div style={{ marginBottom: "4px" }}>
+        <h2 style={{ marginBottom: "8px" }}>Dobrodosli nazad</h2>
+      </div>
+
       <div>
         <label htmlFor="username" style={{ display: "block", marginBottom: "8px", fontSize: "14px", fontWeight: 600 }}>
-          Username
+          Korisnicko ime
         </label>
         <input
           type="text"
@@ -64,7 +69,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ authAPI }) => {
           name="username"
           value={formData.username}
           onChange={handleChange}
-          placeholder="Enter your username"
+          placeholder="Unesite korisnicko ime"
           required
           disabled={isLoading}
         />
@@ -72,7 +77,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ authAPI }) => {
 
       <div>
         <label htmlFor="password" style={{ display: "block", marginBottom: "8px", fontSize: "14px", fontWeight: 600 }}>
-          Password
+          Lozinka
         </label>
         <input
           type="password"
@@ -80,21 +85,14 @@ export const LoginForm: React.FC<LoginFormProps> = ({ authAPI }) => {
           name="password"
           value={formData.password}
           onChange={handleChange}
-          placeholder="Enter your password"
+          placeholder="Unesite lozinku"
           required
           disabled={isLoading}
         />
       </div>
 
       {error && (
-        <div
-          className="card"
-          style={{
-            padding: "12px 16px",
-            backgroundColor: "rgba(196, 43, 28, 0.15)",
-            borderColor: "var(--win11-close-hover)",
-          }}
-        >
+        <div className="status-banner status-banner-error">
           <div className="flex items-center gap-2">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="var(--win11-close-hover)">
               <path d="M8 2a6 6 0 100 12A6 6 0 008 2zm0 1a5 5 0 110 10A5 5 0 018 3zm0 2a.5.5 0 01.5.5v3a.5.5 0 01-1 0v-3A.5.5 0 018 5zm0 6a.75.75 0 110 1.5.75.75 0 010-1.5z"/>
@@ -113,10 +111,10 @@ export const LoginForm: React.FC<LoginFormProps> = ({ authAPI }) => {
         {isLoading ? (
           <div className="flex items-center gap-2">
             <div className="spinner" style={{ width: "16px", height: "16px", borderWidth: "2px" }}></div>
-            <span>Logging in...</span>
+            <span>Prijava...</span>
           </div>
         ) : (
-          "Login"
+          "Prijava"
         )}
       </button>
     </form>

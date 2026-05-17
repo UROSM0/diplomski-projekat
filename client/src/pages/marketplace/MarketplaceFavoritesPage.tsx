@@ -87,10 +87,9 @@ export const MarketplaceFavoritesPage: React.FC<MarketplaceFavoritesPageProps> =
 
       <section className="card">
         <h2 style={{ marginBottom: "8px" }}>Omiljeni oglasi</h2>
-        <p>Ovde su svi oglasi koje si sacuvao za kasnije.</p>
 
         {isLoading ? (
-          <p style={{ marginTop: "16px", marginBottom: 0 }}>Loading favorite ads...</p>
+          <p style={{ marginTop: "16px", marginBottom: 0 }}>Ucavanje omiljenih oglasa...</p>
         ) : (
           <div
             style={{
@@ -124,17 +123,17 @@ export const MarketplaceFavoritesPage: React.FC<MarketplaceFavoritesPageProps> =
                           border: "1px solid var(--win11-divider)",
                         }}
                       >
-                        <span style={{ color: "var(--win11-text-tertiary)" }}>Unavailable ad</span>
+                        <span style={{ color: "var(--win11-text-tertiary)" }}>Nedostupan oglas</span>
                       </div>
                       <p style={{ fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                        Hidden from marketplace
+                        Nije javno vidljiv
                       </p>
                       <h3>Oglas vise nije javno dostupan</h3>
                       <p>
                         Ovaj oglas je i dalje sacuvan u omiljenima, ali trenutno nije javno vidljiv.
                       </p>
                       <div className="flex justify-between gap-3" style={{ alignItems: "center", marginBottom: "14px" }}>
-                        <strong>Saved favorite</strong>
+                        <strong>Sacuvan oglas</strong>
                         <span style={{ fontSize: "12px", color: "var(--win11-text-tertiary)" }}>
                           {new Date(favorite.createdAt).toLocaleDateString()}
                         </span>
@@ -185,11 +184,11 @@ export const MarketplaceFavoritesPage: React.FC<MarketplaceFavoritesPageProps> =
                           border: "1px solid var(--win11-divider)",
                         }}
                       >
-                        <span style={{ color: "var(--win11-text-tertiary)" }}>No image</span>
+                        <span style={{ color: "var(--win11-text-tertiary)" }}>Nema slike</span>
                       </div>
                     )}
                     <p style={{ fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                      {ad.category?.name ?? "Unknown category"}
+                      {ad.category?.name ?? "Nepoznata kategorija"}
                     </p>
                     <h3>{ad.title}</h3>
                     <p>{ad.description}</p>

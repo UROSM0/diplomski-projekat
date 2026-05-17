@@ -111,26 +111,17 @@ export const NotificationsPage: React.FC<NotificationsPageProps> = ({ userAPI })
   };
 
   return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background:
-          "radial-gradient(circle at top left, rgba(125,255,179,0.12), transparent 30%), radial-gradient(circle at top right, rgba(126,200,255,0.12), transparent 28%), linear-gradient(180deg, #181818 0%, #111111 100%)",
-      }}
-    >
+    <div className="page-shell">
       <DashboardNavbar userAPI={userAPI} activePage="notifications" />
 
-      <main style={{ maxWidth: "1080px", margin: "0 auto", padding: "32px 20px 48px" }}>
-        <section className="card" style={{ marginBottom: "24px" }}>
+      <main className="page-main" style={{ maxWidth: "1080px" }}>
+        <section className="card page-hero page-hero-tight" style={{ marginBottom: "24px" }}>
           <div
             className="flex justify-between gap-3"
             style={{ alignItems: "center", flexWrap: "wrap", marginBottom: "16px" }}
           >
             <div>
-              <h1 style={{ marginBottom: "8px" }}>Notifications</h1>
-              <p style={{ marginBottom: 0 }}>
-                Track moderation decisions, purchases, new messages, and ratings in one place.
-              </p>
+              <h1 style={{ marginBottom: "8px" }}>Obavestenja</h1>
             </div>
             <button
               className="btn btn-accent"
@@ -138,7 +129,7 @@ export const NotificationsPage: React.FC<NotificationsPageProps> = ({ userAPI })
               onClick={handleMarkAllAsRead}
               disabled={isMarkingAll || !notifications.some((notification) => !notification.isRead)}
             >
-              {isMarkingAll ? "Saving..." : "Mark all as read"}
+              {isMarkingAll ? "Cuvanje..." : "Oznaci sve kao procitano"}
             </button>
           </div>
 
@@ -148,17 +139,17 @@ export const NotificationsPage: React.FC<NotificationsPageProps> = ({ userAPI })
               type="button"
               onClick={() => setShowUnreadOnly(false)}
             >
-              All
+              Sve
             </button>
             <button
               className={showUnreadOnly ? "btn btn-accent" : "btn btn-ghost"}
               type="button"
               onClick={() => setShowUnreadOnly(true)}
             >
-              Unread only
+              Neprocitano
             </button>
             <span style={{ fontSize: "13px", color: "var(--win11-text-secondary)" }}>
-              Unread in current view: {unreadCount}
+              Neprocitano: {unreadCount}
             </span>
           </div>
 
@@ -166,10 +157,10 @@ export const NotificationsPage: React.FC<NotificationsPageProps> = ({ userAPI })
         </section>
 
         <section className="card">
-          {isLoading ? <p>Loading notifications...</p> : null}
+          {isLoading ? <p>Ucavanje obavestenja...</p> : null}
           {!isLoading && !notifications.length ? (
             <p style={{ marginBottom: 0 }}>
-              {showUnreadOnly ? "You have no unread notifications." : "You have no notifications yet."}
+              {showUnreadOnly ? "Nemate neprocitana obavestenja." : "Jos nemate obavestenja."}
             </p>
           ) : null}
 
@@ -179,7 +170,7 @@ export const NotificationsPage: React.FC<NotificationsPageProps> = ({ userAPI })
                 key={notification.id}
                 className="card"
                 style={{
-                  background: notification.isRead ? "rgba(255,255,255,0.03)" : "rgba(255,255,255,0.06)",
+                  background: notification.isRead ? "var(--win11-surface-subtle)" : "var(--win11-surface-elevated)",
                   borderLeft: `4px solid ${getNotificationAccent(notification.type)}`,
                 }}
               >
@@ -211,7 +202,7 @@ export const NotificationsPage: React.FC<NotificationsPageProps> = ({ userAPI })
                             color: getNotificationAccent(notification.type),
                           }}
                         >
-                          New
+                          Novo
                         </span>
                       ) : null}
                     </div>
@@ -227,7 +218,7 @@ export const NotificationsPage: React.FC<NotificationsPageProps> = ({ userAPI })
                       type="button"
                       onClick={() => void handleMarkAsRead(notification.id)}
                     >
-                      Mark as read
+                      Oznaci kao procitano
                     </button>
                   ) : null}
                 </div>

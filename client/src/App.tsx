@@ -13,6 +13,8 @@ import { ChatAPI } from "./api/chat/ChatAPI";
 import { IAuditAPI } from "./api/audit/IAuditAPI";
 import { AuditAPI } from "./api/audit/AuditAPI";
 import { ProtectedRoute } from "./components/protected_route/ProtectedRoute";
+import { AdminUsersPage } from "./pages/AdminUsersPage";
+import { AuditLogsPage } from "./pages/AuditLogsPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { ChatPage } from "./pages/ChatPage";
 import { NotificationsPage } from "./pages/NotificationsPage";
@@ -38,7 +40,23 @@ function App() {
           path="/dashboard"
           element={
             <ProtectedRoute requiredRole="admin,manager,user">
-              <DashboardPage userAPI={user_api} transactionAPI={transaction_api} auditAPI={audit_api} />
+              <DashboardPage userAPI={user_api} transactionAPI={transaction_api} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/users"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <AdminUsersPage userAPI={user_api} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/audit"
+          element={
+            <ProtectedRoute requiredRole="admin">
+              <AuditLogsPage auditAPI={audit_api} userAPI={user_api} />
             </ProtectedRoute>
           }
         />

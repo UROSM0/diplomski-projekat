@@ -411,28 +411,32 @@ export class GatewayService implements IGatewayService {
   }
 
   async purchaseAd(buyerId: string, data: PurchaseTransactionDTO): Promise<TransactionDTO> {
-    const response = await this.transactionClient.post<TransactionDTO>("/transactions/purchase", {
-      ...data,
-      buyerId,
-    });
-    await this.logAudit({
-      userId: buyerId,
-      action: "buy",
-      service: "gateway/transaction",
-      description: `User purchased ad ${data.adId}.`,
-      metadata: { adId: data.adId, transactionId: response.data.id },
-    });
-    await this.createNotification(buyerId, {
-      type: "PURCHASE_SUCCESS",
-      title: "Purchase completed",
-      content: `You purchased "${response.data.adTitle}" for ${response.data.amount.toFixed(2)} RSD.`,
-    });
-    await this.createNotification(response.data.sellerId, {
-      type: "PURCHASE_SUCCESS",
-      title: "Ad sold",
-      content: `Your ad "${response.data.adTitle}" has been sold for ${response.data.amount.toFixed(2)} RSD.`,
-    });
-    return response.data;
+    try {
+      const response = await this.transactionClient.post<TransactionDTO>("/transactions/purchase", {
+        ...data,
+        buyerId,
+      });
+      await this.logAudit({
+        userId: buyerId,
+        action: "buy",
+        service: "gateway/transaction",
+        description: `User purchased ad ${data.adId}.`,
+        metadata: { adId: data.adId, transactionId: response.data.id },
+      });
+      await this.createNotification(buyerId, {
+        type: "PURCHASE_SUCCESS",
+        title: "Purchase completed",
+        content: `You purchased "${response.data.adTitle}" for ${response.data.amount.toFixed(2)} RSD.`,
+      });
+      await this.createNotification(response.data.sellerId, {
+        type: "PURCHASE_SUCCESS",
+        title: "Ad sold",
+        content: `Your ad "${response.data.adTitle}" has been sold for ${response.data.amount.toFixed(2)} RSD.`,
+      });
+      return response.data;
+    } catch (error) {
+      throw this.toServiceError(error, "Purchase failed.");
+    }
   }
 
   async getPurchases(userId: string): Promise<TransactionDTO[]> {
@@ -446,23 +450,27 @@ export class GatewayService implements IGatewayService {
   }
 
   async rateTransaction(transactionId: string, buyerId: string, data: CreateRatingDTO): Promise<TransactionDTO> {
-    const response = await this.transactionClient.post<TransactionDTO>(`/transactions/${transactionId}/rating`, {
-      ...data,
-      buyerId,
-    });
-    await this.logAudit({
-      userId: buyerId,
-      action: "rate_transaction",
-      service: "gateway/transaction",
-      description: `User rated transaction ${transactionId}.`,
-      metadata: { transactionId, score: data.score },
-    });
-    await this.createNotification(response.data.sellerId, {
-      type: "NEW_RATING",
-      title: "New rating received",
-      content: `You received a rating of ${data.score}/5 for "${response.data.adTitle}".`,
-    });
-    return response.data;
+    try {
+      const response = await this.transactionClient.post<TransactionDTO>(`/transactions/${transactionId}/rating`, {
+        ...data,
+        buyerId,
+      });
+      await this.logAudit({
+        userId: buyerId,
+        action: "rate_transaction",
+        service: "gateway/transaction",
+        description: `User rated transaction ${transactionId}.`,
+        metadata: { transactionId, score: data.score },
+      });
+      await this.createNotification(response.data.sellerId, {
+        type: "NEW_RATING",
+        title: "New rating received",
+        content: `You received a rating of ${data.score}/5 for "${response.data.adTitle}".`,
+      });
+      return response.data;
+    } catch (error) {
+      throw this.toServiceError(error, "Rating failed.");
+    }
   }
 
   async createOrGetConversation(userId: string, data: CreateConversationDTO): Promise<ConversationDTO> {
@@ -586,5 +594,18 @@ export class GatewayService implements IGatewayService {
       success: false,
       message: fallbackMessage,
     };
+  }
+
+  private toServiceError(error: unknown, fallbackMessage: string): Error {
+    if (axios.isAxiosError(error)) {
+      const message = (error.response?.data as { message?: string } | undefined)?.message;
+      return new Error(message ?? fallbackMessage);
+    }
+
+    if (error instanceof Error) {
+      return error;
+    }
+
+    return new Error(fallbackMessage);
   }
 }

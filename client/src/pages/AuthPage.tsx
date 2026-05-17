@@ -11,54 +11,47 @@ export const AuthPage: React.FC<AuthPageProps> = ({ authAPI }) => {
   const [activeTab, setActiveTab] = useState<"login" | "register">("login");
 
   return (
-    <div className="overlay-blur-none" style={{ position: "fixed" }}>
-      <div className="window" style={{ width: "500px", maxWidth: "90%" }}>
+    <div className="overlay-blur-none">
+      <div className="window auth-shell">
+        <div className="auth-panel">
+          <section className="auth-side">
+            <div className="hero-kicker">Oglasnik</div>
+            <h1 style={{ maxWidth: "10ch", marginBottom: "14px" }}>Kupuj i prodaj na jednom mestu.</h1>
+          </section>
+
+          <section className="auth-form-panel">
         <div className="titlebar">
           <div className="titlebar-icon">
             <img style={{marginTop: -5 }} src='/icon.png' width="20" height="20" />
           </div>
-          <span className="titlebar-title">Authentication</span>
+          <span className="titlebar-title">Oglasnik</span>
         </div>
 
         <div className="window-content" style={{ padding: 0 }}>
-          {/* Tabs */}
-          <div className="flex" style={{ borderBottom: "1px solid var(--win11-divider)" }}>
+          <div className="auth-tab-row">
             <button
-              className={`flex-1 ${activeTab === "login" ? "btn-accent" : "btn-ghost"}`}
-              style={{
-                borderRadius: 0,
-                height: "48px",
-                fontSize: "14px",
-                fontWeight: 600,
-                borderBottom: activeTab === "login" ? "2px solid var(--win11-accent)" : "none",
-              }}
+              className={activeTab === "login" ? "btn auth-tab-button auth-tab-button-active" : "btn auth-tab-button"}
               onClick={() => setActiveTab("login")}
             >
-              Login
+              Prijava
             </button>
             <button
-              className={`flex-1 ${activeTab === "register" ? "btn-accent" : "btn-ghost"}`}
-              style={{
-                borderRadius: 0,
-                height: "48px",
-                fontSize: "14px",
-                fontWeight: 600,
-                borderBottom: activeTab === "register" ? "2px solid var(--win11-accent)" : "none",
-              }}
+              className={activeTab === "register" ? "btn auth-tab-button auth-tab-button-active" : "btn auth-tab-button"}
               onClick={() => setActiveTab("register")}
             >
-              Register
+              Registracija
             </button>
           </div>
 
-          {/* Content */}
-          <div style={{ padding: "24px" }}>
+          <div style={{ padding: "28px 24px 24px" }}>
             {activeTab === "login" ? (
               <LoginForm authAPI={authAPI} />
             ) : (
               <RegisterForm authAPI={authAPI} />
             )}
           </div>
+        </div>
+          </section>
         </div>
       </div>
     </div>

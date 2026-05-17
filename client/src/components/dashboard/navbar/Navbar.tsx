@@ -3,10 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { IUserAPI } from "../../../api/users/IUserAPI";
 import { useAuth } from "../../../hooks/useAuthHook";
 import { UserDTO } from "../../../models/users/UserDTO";
+import { formatRoleLabel, formatUserDisplayName } from "../../../utils/userDisplay";
 
 type DashboardNavbarProps = {
   userAPI: IUserAPI;
-  activePage?: "dashboard" | "marketplace" | "chat" | "notifications";
+  activePage?: "dashboard" | "marketplace" | "chat" | "notifications" | "admin-users" | "audit";
 };
 
 export const DashboardNavbar: React.FC<DashboardNavbarProps> = ({
@@ -14,6 +15,7 @@ export const DashboardNavbar: React.FC<DashboardNavbarProps> = ({
   activePage = "dashboard",
 }) => {
   const { user: authUser, logout, token } = useAuth();
+  const isAdmin = authUser?.role?.toUpperCase() === "ADMIN";
   const [user, setUser] = useState<UserDTO | null>(null);
   const [unreadNotificationsCount, setUnreadNotificationsCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
@@ -64,116 +66,93 @@ export const DashboardNavbar: React.FC<DashboardNavbarProps> = ({
     navigate("/");
   };
 
-  const displayUsername = user?.username ?? authUser?.username ?? "Authenticated user";
-  const displayRole = user?.role ?? authUser?.role ?? "Unknown role";
-  const displayEmail = user?.email ?? "Profile not loaded yet";
+  const displayUsername = formatUserDisplayName(user ?? authUser ?? { username: "Korisnik" });
+  const displayRole = formatRoleLabel(user?.role ?? authUser?.role);
+  const displayEmail = user?.email ?? "Profil nije ucitan";
 
   return (
-    <nav className="titlebar" style={{ height: "60px", borderRadius: 0 }}>
-      <div className="flex items-center gap-2">
+    <nav className="app-topbar">
+      <div className="topbar-brand">
+        <span>Oglasnik</span>
+        <strong>Prodaja i kupovina</strong>
+      </div>
+
+      <div className="topbar-nav">
         <button
-          className={activePage === "dashboard" ? "btn btn-accent" : "btn btn-ghost"}
+          className={activePage === "dashboard" ? "btn topbar-link topbar-link-active" : "btn topbar-link"}
           onClick={() => navigate("/dashboard")}
-          style={{ padding: "8px 14px" }}
         >
-          Dashboard
+          Nalog
         </button>
         <button
-          className={activePage === "marketplace" ? "btn btn-accent" : "btn btn-ghost"}
+          className={activePage === "marketplace" ? "btn topbar-link topbar-link-active" : "btn topbar-link"}
           onClick={() => navigate("/marketplace/all")}
-          style={{ padding: "8px 14px" }}
         >
-          Marketplace
+          Oglasi
         </button>
         <button
-          className={activePage === "chat" ? "btn btn-accent" : "btn btn-ghost"}
+          className={activePage === "chat" ? "btn topbar-link topbar-link-active" : "btn topbar-link"}
           onClick={() => navigate("/chat")}
-          style={{ padding: "8px 14px" }}
         >
-          Chat
+          Poruke
         </button>
         <button
-          className={activePage === "notifications" ? "btn btn-accent" : "btn btn-ghost"}
+          className={activePage === "notifications" ? "btn topbar-link topbar-link-active" : "btn topbar-link"}
           onClick={() => navigate("/notifications")}
-          style={{ padding: "8px 14px", position: "relative" }}
         >
-          Notifications
+          Obavestenja
           {unreadNotificationsCount > 0 ? (
-            <span
-              style={{
-                marginLeft: "8px",
-                minWidth: "22px",
-                height: "22px",
-                borderRadius: "999px",
-                background: activePage === "notifications" ? "rgba(0, 0, 0, 0.18)" : "var(--win11-accent)",
-                color: "#000",
-                display: "inline-flex",
-                alignItems: "center",
-                justifyContent: "center",
-                fontSize: "11px",
-                fontWeight: 700,
-                padding: "0 6px",
-              }}
-            >
+            <span className="topbar-notification-badge">
               {unreadNotificationsCount > 99 ? "99+" : unreadNotificationsCount}
             </span>
           ) : null}
         </button>
+        {isAdmin ? (
+          <button
+            className={activePage === "admin-users" ? "btn topbar-link topbar-link-active" : "btn topbar-link"}
+            onClick={() => navigate("/admin/users")}
+          >
+            Korisnici
+          </button>
+        ) : null}
+        {isAdmin ? (
+          <button
+            className={activePage === "audit" ? "btn topbar-link topbar-link-active" : "btn topbar-link"}
+            onClick={() => navigate("/admin/audit")}
+          >
+            Aktivnosti
+          </button>
+        ) : null}
       </div>
 
-      <div className="flex items-center gap-3" style={{ marginLeft: "auto" }}>
+      <div className="topbar-user">
         {isLoading ? (
           <div className="spinner" style={{ width: "20px", height: "20px", borderWidth: "2px" }}></div>
         ) : authUser ? (
           <>
-            {/* Profile Image */}
             {user?.profileImage ? (
               <img
                 src={user.profileImage}
                 alt={displayUsername}
-                style={{
-                  width: "32px",
-                  height: "32px",
-                  borderRadius: "50%",
-                  objectFit: "cover",
-                  border: "2px solid var(--win11-divider)",
-                }}
+                className="topbar-avatar"
               />
             ) : (
-              <div
-                style={{
-                  width: "32px",
-                  height: "32px",
-                  borderRadius: "50%",
-                  background: "var(--win11-accent)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontWeight: 600,
-                  fontSize: "14px",
-                  color: "#000",
-                }}
-              >
+              <div className="topbar-avatar">
                 {displayUsername.charAt(0).toUpperCase()}
               </div>
             )}
 
-            {/* User Info */}
-            <div className="flex flex-col" style={{ gap: 0 }}>
-              <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--win11-text-primary)" }}>
-                {displayEmail}
-              </span>
-              <span style={{ fontSize: "11px", color: "var(--win11-text-tertiary)" }}>
-                {displayRole}
-              </span>
+            <div className="topbar-user-copy">
+              <strong>{displayUsername}</strong>
+              <span>{displayEmail}</span>
+              <span>{displayRole}</span>
             </div>
 
-            {/* Logout Button */}
-            <button className="btn btn-ghost" onClick={handleLogout} style={{ padding: "8px 16px" }}>
+            <button className="btn btn-standard" onClick={handleLogout}>
               <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor">
                 <path d="M6 2v2H3v8h3v2H2V2h4zm4 3l4 3-4 3V9H6V7h4V5z" />
               </svg>
-              Logout
+              Odjava
             </button>
           </>
         ) : null}

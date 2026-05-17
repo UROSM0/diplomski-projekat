@@ -131,11 +131,11 @@ export const MarketplaceAllPage: React.FC<MarketplaceAllPageProps> = ({ adAPI, u
         }}
       >
         <article className="card">
-          <h3>Search Marketplace</h3>
+          <h3>Pretraga oglasa</h3>
           <div className="flex flex-col gap-3">
             <input
               type="search"
-              placeholder="Search ads by title or description"
+              placeholder="Pretrazi po nazivu ili opisu"
               value={filters.search}
               onChange={(event) =>
                 setFilters((current) => ({
@@ -153,7 +153,7 @@ export const MarketplaceAllPage: React.FC<MarketplaceAllPageProps> = ({ adAPI, u
                 }))
               }
             >
-              <option value="">All categories</option>
+              <option value="">Sve kategorije</option>
               {categories.map((category) => (
                 <option key={category.id} value={category.id}>
                   {category.name}
@@ -164,7 +164,7 @@ export const MarketplaceAllPage: React.FC<MarketplaceAllPageProps> = ({ adAPI, u
         </article>
 
         <article className="card">
-          <h3>Marketplace Status</h3>
+          <h3>Pregled oglasa</h3>
           <div
             style={{
               display: "grid",
@@ -174,19 +174,19 @@ export const MarketplaceAllPage: React.FC<MarketplaceAllPageProps> = ({ adAPI, u
           >
             <div className="list-item" style={{ cursor: "default" }}>
               <div>
-                <strong>Categories</strong>
+                <strong>Kategorije</strong>
                 <p style={{ marginBottom: 0 }}>{categories.length}</p>
               </div>
             </div>
             <div className="list-item" style={{ cursor: "default" }}>
               <div>
-                <strong>Public Ads</strong>
+                <strong>Javni oglasi</strong>
                 <p style={{ marginBottom: 0 }}>{publicAds.length}</p>
               </div>
             </div>
             <div className="list-item" style={{ cursor: "default" }}>
               <div>
-                <strong>Favorites</strong>
+                <strong>Omiljeni</strong>
                 <p style={{ marginBottom: 0 }}>{isLoadingFavorites ? "..." : favoriteAdIds.length}</p>
               </div>
             </div>
@@ -198,14 +198,11 @@ export const MarketplaceAllPage: React.FC<MarketplaceAllPageProps> = ({ adAPI, u
         <div className="flex justify-between gap-4" style={{ alignItems: "center", flexWrap: "wrap" }}>
           <div>
             <h2 style={{ marginBottom: "8px" }}>Svi oglasi</h2>
-            <p style={{ marginBottom: 0 }}>
-              Ovde vidiš sve odobrene oglase i možeš da ih dodaješ u omiljene.
-            </p>
           </div>
         </div>
 
         {isLoadingPublicAds ? (
-          <p style={{ marginTop: "16px", marginBottom: 0 }}>Loading ads...</p>
+          <p style={{ marginTop: "16px", marginBottom: 0 }}>Ucavanje oglasa...</p>
         ) : (
           <div
             style={{
@@ -253,11 +250,11 @@ export const MarketplaceAllPage: React.FC<MarketplaceAllPageProps> = ({ adAPI, u
                           border: "1px solid var(--win11-divider)",
                         }}
                       >
-                        <span style={{ color: "var(--win11-text-tertiary)" }}>No image</span>
+                        <span style={{ color: "var(--win11-text-tertiary)" }}>Nema slike</span>
                       </div>
                     )}
                     <p style={{ fontSize: "12px", textTransform: "uppercase", letterSpacing: "0.08em" }}>
-                      {categoryMap[ad.categoryId] ?? ad.category?.name ?? "Unknown category"}
+                      {categoryMap[ad.categoryId] ?? ad.category?.name ?? "Nepoznata kategorija"}
                     </p>
                     <h3>{ad.title}</h3>
                     <p>{ad.description}</p>
@@ -283,7 +280,7 @@ export const MarketplaceAllPage: React.FC<MarketplaceAllPageProps> = ({ adAPI, u
                 );
               })
             ) : (
-              <p style={{ marginBottom: 0 }}>No approved ads match the current filters.</p>
+              <p style={{ marginBottom: 0 }}>Nema oglasa za izabrane filtere.</p>
             )}
           </div>
         )}
