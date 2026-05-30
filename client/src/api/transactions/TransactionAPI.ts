@@ -2,6 +2,7 @@ import axios, { AxiosInstance } from "axios";
 import { ITransactionAPI } from "./ITransactionAPI";
 import { CreateRatingDTO } from "../../models/transactions/CreateRatingDTO";
 import { PurchaseTransactionDTO } from "../../models/transactions/PurchaseTransactionDTO";
+import { SellerRatingDTO } from "../../models/transactions/SellerRatingDTO";
 import { TransactionDTO } from "../../models/transactions/TransactionDTO";
 import { createApiError } from "../shared/apiError";
 
@@ -43,6 +44,16 @@ export class TransactionAPI implements ITransactionAPI {
         headers: { Authorization: `Bearer ${token}` },
       })
     ).data;
+  }
+
+  async getSellerRatings(sellerId: string): Promise<SellerRatingDTO[]> {
+    try {
+      return (
+        await this.axiosInstance.get<SellerRatingDTO[]>(`/transactions/seller/${sellerId}/ratings`)
+      ).data;
+    } catch (error) {
+      throw createApiError(error, "Failed to load seller ratings.");
+    }
   }
 
   async createRating(token: string, transactionId: string, data: CreateRatingDTO): Promise<TransactionDTO> {

@@ -7,7 +7,7 @@ import { DashboardNavbar } from "../components/dashboard/navbar/Navbar";
 import { useAuth } from "../hooks/useAuthHook";
 import { ConversationDTO } from "../models/chat/ConversationDTO";
 import { MessageDTO } from "../models/chat/MessageDTO";
-import { UserDTO } from "../models/users/UserDTO";
+import { PublicUserDTO } from "../models/users/PublicUserDTO";
 import { formatUserDisplayName } from "../utils/userDisplay";
 
 type ChatPageProps = {
@@ -22,7 +22,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({ chatAPI, userAPI }) => {
   const [selectedConversationId, setSelectedConversationId] = useState<string>("");
   const [messages, setMessages] = useState<MessageDTO[]>([]);
   const [messageDraft, setMessageDraft] = useState("");
-  const [participantDirectory, setParticipantDirectory] = useState<Record<string, UserDTO>>({});
+  const [participantDirectory, setParticipantDirectory] = useState<Record<string, PublicUserDTO>>({});
   const [isLoadingConversations, setIsLoadingConversations] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [pageError, setPageError] = useState("");
@@ -106,11 +106,11 @@ export const ChatPage: React.FC<ChatPageProps> = ({ chatAPI, userAPI }) => {
       const users = await Promise.allSettled(
         otherParticipantIds.map(async (participantId) => ({
           participantId,
-          profile: await userAPI.getUserById(token, participantId),
+          profile: await userAPI.getPublicUserById(participantId),
         }))
       );
 
-      const nextDirectory = users.reduce<Record<string, UserDTO>>((directory, result) => {
+      const nextDirectory = users.reduce<Record<string, PublicUserDTO>>((directory, result) => {
         if (result.status === "fulfilled") {
           directory[result.value.participantId] = result.value.profile;
         }

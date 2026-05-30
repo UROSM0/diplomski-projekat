@@ -5,6 +5,7 @@ import { ChangePasswordDTO } from "../../models/users/ChangePasswordDTO";
 import { FavoriteDTO } from "../../models/users/FavoriteDTO";
 import { GetNotificationsQueryDTO } from "../../models/users/GetNotificationsQueryDTO";
 import { NotificationDTO } from "../../models/users/NotificationDTO";
+import { PublicUserDTO } from "../../models/users/PublicUserDTO";
 import { TopUpBalanceDTO } from "../../models/users/TopUpBalanceDTO";
 import { UpdateUserAccessDTO } from "../../models/users/UpdateUserAccessDTO";
 import { UpdateUserProfileDTO } from "../../models/users/UpdateUserProfileDTO";
@@ -56,6 +57,16 @@ export class UserAPI implements IUserAPI {
       ).data;
     } catch (error) {
       throw createApiError(error, "Failed to load your profile.");
+    }
+  }
+
+  async getPublicUserById(id: string): Promise<PublicUserDTO> {
+    try {
+      return (
+        await this.axiosInstance.get<PublicUserDTO>(`/users/${id}/public`)
+      ).data;
+    } catch (error) {
+      throw createApiError(error, "Failed to load public user profile.");
     }
   }
 

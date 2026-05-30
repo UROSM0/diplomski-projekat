@@ -25,6 +25,7 @@ import { MarketplaceCreatePage } from "./pages/marketplace/MarketplaceCreatePage
 import { MarketplaceFavoritesPage } from "./pages/marketplace/MarketplaceFavoritesPage";
 import { MarketplaceLayout } from "./pages/marketplace/MarketplaceLayout";
 import { MarketplaceModerationPage } from "./pages/marketplace/MarketplaceModerationPage";
+import { MarketplaceMyAdsPage } from "./pages/marketplace/MarketplaceMyAdsPage";
 
 const auth_api: IAuthAPI = new AuthAPI();
 const user_api: IUserAPI = new UserAPI();
@@ -108,6 +109,7 @@ function App() {
             element={<MarketplaceAdDetailsPage userAPI={user_api} adAPI={ad_api} transactionAPI={transaction_api} chatAPI={chat_api} />}
           />
           <Route path="create" element={<MarketplaceCreatePage adAPI={ad_api} />} />
+          <Route path="my-ads" element={<MarketplaceMyAdsPage adAPI={ad_api} />} />
           <Route path="favorites" element={<MarketplaceFavoritesPage userAPI={user_api} adAPI={ad_api} />} />
           <Route path="moderation" element={<MarketplaceModerationPage adAPI={ad_api} userAPI={user_api} />} />
         </Route>

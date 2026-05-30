@@ -49,6 +49,14 @@ export const MarketplaceLayout: React.FC<MarketplaceLayoutProps> = ({ userAPI })
               Dodaj oglas
             </NavLink>
             <NavLink
+              to="/marketplace/my-ads"
+              className={({ isActive }) =>
+                isActive ? "section-tab section-tab-active" : "section-tab"
+              }
+            >
+              Moji oglasi
+            </NavLink>
+            <NavLink
               to="/marketplace/favorites"
               className={({ isActive }) =>
                 isActive ? "section-tab section-tab-active" : "section-tab"

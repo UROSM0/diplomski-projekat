@@ -3,6 +3,7 @@ import { ChangePasswordDTO } from "../../models/users/ChangePasswordDTO";
 import { FavoriteDTO } from "../../models/users/FavoriteDTO";
 import { GetNotificationsQueryDTO } from "../../models/users/GetNotificationsQueryDTO";
 import { NotificationDTO } from "../../models/users/NotificationDTO";
+import { PublicUserDTO } from "../../models/users/PublicUserDTO";
 import { TopUpBalanceDTO } from "../../models/users/TopUpBalanceDTO";
 import { UpdateUserAccessDTO } from "../../models/users/UpdateUserAccessDTO";
 import { UpdateUserProfileDTO } from "../../models/users/UpdateUserProfileDTO";
@@ -12,6 +13,7 @@ export interface IUserAPI {
   getCurrentUser(token: string): Promise<UserDTO>;
   getAllUsers(token: string): Promise<UserDTO[]>;
   getUserById(token: string, id: string): Promise<UserDTO>;
+  getPublicUserById(id: string): Promise<PublicUserDTO>;
   getFavorites(token: string): Promise<FavoriteDTO[]>;
   addFavorite(token: string, data: AddFavoriteDTO): Promise<FavoriteDTO>;
   removeFavorite(token: string, adId: string): Promise<void>;

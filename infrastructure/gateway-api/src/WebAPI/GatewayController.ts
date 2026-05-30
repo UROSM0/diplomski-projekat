@@ -50,6 +50,7 @@ export class GatewayController {
     this.router.get("/users/me/notifications", authenticate, authorize("admin", "manager", "user"), this.getCurrentUserNotifications.bind(this));
     this.router.patch("/users/me/notifications/:id/read", authenticate, authorize("admin", "manager", "user"), this.markCurrentUserNotificationAsRead.bind(this));
     this.router.post("/users/me/notifications/mark-all-read", authenticate, authorize("admin", "manager", "user"), this.markAllCurrentUserNotificationsAsRead.bind(this));
+    this.router.get("/users/:id/public", this.getPublicUserById.bind(this));
     this.router.get("/users/:id", authenticate, authorize("admin", "manager", "user"), this.getUserById.bind(this));
     this.router.patch("/users/:id/access", authenticate, authorize("admin"), this.updateUserAccess.bind(this));
 
@@ -71,6 +72,7 @@ export class GatewayController {
     this.router.post("/transactions/purchase", authenticate, authorize("admin", "manager", "user"), this.purchaseAd.bind(this));
     this.router.get("/transactions/me/purchases", authenticate, authorize("admin", "manager", "user"), this.getMyPurchases.bind(this));
     this.router.get("/transactions/me/sales", authenticate, authorize("admin", "manager", "user"), this.getMySales.bind(this));
+    this.router.get("/transactions/seller/:sellerId/ratings", this.getSellerRatings.bind(this));
     this.router.post("/transactions/:id/rating", authenticate, authorize("admin", "manager", "user"), this.rateTransaction.bind(this));
 
     // Chat
@@ -245,6 +247,28 @@ export class GatewayController {
       res.status(204).send();
     } catch (err) {
       res.status(400).json({ message: (err as Error).message });
+    }
+  }
+
+  private async getPublicUserById(req: Request, res: Response): Promise<void> {
+    try {
+      const id = Array.isArray(req.params.id) ? req.params.id[0] : req.params.id;
+
+      if (!id) {
+        res.status(400).json({ message: "Invalid user id." });
+        return;
+      }
+
+      const user = await this.gatewayService.getUserById(id);
+      res.status(200).json({
+        id: user.id,
+        username: user.username,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        profileImage: user.profileImage,
+      });
+    } catch (err) {
+      res.status(404).json({ message: (err as Error).message });
     }
   }
 
@@ -511,6 +535,33 @@ export class GatewayController {
 
       const transactions = await this.gatewayService.getSales(req.user.id);
       res.status(200).json(transactions);
+    } catch (err) {
+      res.status(400).json({ message: (err as Error).message });
+    }
+  }
+
+  private async getSellerRatings(req: Request, res: Response): Promise<void> {
+    try {
+      const sellerId = this.getSingleValue(req.params.sellerId);
+      if (!sellerId) {
+        res.status(400).json({ message: "Invalid seller id." });
+        return;
+      }
+
+      const transactions = await this.gatewayService.getSales(sellerId);
+      const ratings = transactions
+        .filter((transaction) => transaction.rating)
+        .map((transaction) => ({
+          transactionId: transaction.id,
+          adId: transaction.adId,
+          adTitle: transaction.adTitle,
+          adImageUrl: transaction.adImageUrl,
+          score: transaction.rating!.score,
+          comment: transaction.rating!.comment,
+          createdAt: transaction.rating!.createdAt,
+        }));
+
+      res.status(200).json(ratings);
     } catch (err) {
       res.status(400).json({ message: (err as Error).message });
     }

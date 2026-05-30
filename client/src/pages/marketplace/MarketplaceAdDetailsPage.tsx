@@ -7,7 +7,8 @@ import { ITransactionAPI } from "../../api/transactions/ITransactionAPI";
 import { IUserAPI } from "../../api/users/IUserAPI";
 import { useAuth } from "../../hooks/useAuthHook";
 import { AdDTO } from "../../models/ads/AdDTO";
-import { UserDTO } from "../../models/users/UserDTO";
+import { SellerRatingDTO } from "../../models/transactions/SellerRatingDTO";
+import { PublicUserDTO } from "../../models/users/PublicUserDTO";
 import { formatAdStatusLabel, formatUserDisplayName } from "../../utils/userDisplay";
 
 type MarketplaceAdDetailsPageProps = {
@@ -36,7 +37,10 @@ export const MarketplaceAdDetailsPage: React.FC<MarketplaceAdDetailsPageProps> =
   const [isStartingChat, setIsStartingChat] = useState(false);
   const [isUpdatingFavorite, setIsUpdatingFavorite] = useState(false);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  const [seller, setSeller] = useState<UserDTO | null>(null);
+  const [seller, setSeller] = useState<PublicUserDTO | null>(null);
+  const [sellerRatings, setSellerRatings] = useState<SellerRatingDTO[]>([]);
+  const [isRatingsOpen, setIsRatingsOpen] = useState(false);
+  const [isLoadingSellerRatings, setIsLoadingSellerRatings] = useState(false);
 
   useEffect(() => {
     const loadAd = async () => {
@@ -60,9 +64,9 @@ export const MarketplaceAdDetailsPage: React.FC<MarketplaceAdDetailsPageProps> =
         setSelectedImageIndex(0);
         setSeller(null);
 
-        if (token && user?.id !== loadedAd.sellerId) {
+        if (user?.id !== loadedAd.sellerId) {
           try {
-            setSeller(await userAPI.getUserById(token, loadedAd.sellerId));
+            setSeller(await userAPI.getPublicUserById(loadedAd.sellerId));
           } catch {
             setSeller(null);
           }
@@ -84,6 +88,14 @@ export const MarketplaceAdDetailsPage: React.FC<MarketplaceAdDetailsPageProps> =
 
     return ad.imageUrls[Math.min(selectedImageIndex, ad.imageUrls.length - 1)] ?? "";
   }, [ad, selectedImageIndex]);
+
+  const sellerRatingAverage = useMemo(() => {
+    if (!sellerRatings.length) {
+      return 0;
+    }
+
+    return sellerRatings.reduce((sum, rating) => sum + rating.score, 0) / sellerRatings.length;
+  }, [sellerRatings]);
 
   const handleToggleFavorite = async () => {
     if (!token || !adId) {
@@ -147,6 +159,29 @@ export const MarketplaceAdDetailsPage: React.FC<MarketplaceAdDetailsPageProps> =
       setPageError(getErrorMessage(error, "Pokretanje razgovora nije uspelo."));
     } finally {
       setIsStartingChat(false);
+    }
+  };
+
+  const handleOpenSellerRatings = async () => {
+    if (!ad?.sellerId) {
+      return;
+    }
+
+    setIsRatingsOpen(true);
+
+    if (sellerRatings.length) {
+      return;
+    }
+
+    setIsLoadingSellerRatings(true);
+
+    try {
+      setSellerRatings(await transactionAPI.getSellerRatings(ad.sellerId));
+    } catch (error) {
+      setPageError(getErrorMessage(error, "Ucavanje ocena prodavca nije uspelo."));
+      setIsRatingsOpen(false);
+    } finally {
+      setIsLoadingSellerRatings(false);
     }
   };
 
@@ -340,6 +375,15 @@ export const MarketplaceAdDetailsPage: React.FC<MarketplaceAdDetailsPageProps> =
                 </p>
               </div>
             </div>
+            <button
+              className="btn btn-ghost"
+              type="button"
+              onClick={() => void handleOpenSellerRatings()}
+              style={{ justifyContent: "space-between" }}
+            >
+              <span>Sve ocene prodavca</span>
+              <span style={{ color: "var(--win11-text-tertiary)" }}>&rsaquo;</span>
+            </button>
             <div className="list-item" style={{ cursor: "default" }}>
               <div>
                 <strong>Status</strong>
@@ -382,6 +426,81 @@ export const MarketplaceAdDetailsPage: React.FC<MarketplaceAdDetailsPageProps> =
           </div>
         </aside>
       </section>
+
+      {isRatingsOpen ? (
+        <div
+          className="overlay"
+          onClick={() => setIsRatingsOpen(false)}
+          style={{ padding: "24px" }}
+        >
+          <div
+            className="card"
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              width: "min(760px, 100%)",
+              maxHeight: "82vh",
+              overflowY: "auto",
+              background: "var(--win11-surface-elevated)",
+            }}
+          >
+            <div
+              className="flex justify-between gap-3"
+              style={{ alignItems: "center", flexWrap: "wrap", marginBottom: "18px" }}
+            >
+              <div>
+                <div className="hero-kicker">Ocene</div>
+                <h2 style={{ marginBottom: "6px" }}>Ocene prodavca</h2>
+                <p style={{ marginBottom: 0 }}>
+                  {sellerRatings.length
+                    ? `Prosek ${sellerRatingAverage.toFixed(1)}/5 na osnovu ${sellerRatings.length} ocena.`
+                    : "Prodavac jos nema nijednu ocenu."}
+                </p>
+              </div>
+              <button className="btn btn-standard" type="button" onClick={() => setIsRatingsOpen(false)}>
+                Zatvori
+              </button>
+            </div>
+
+            {isLoadingSellerRatings ? (
+              <p style={{ marginBottom: 0 }}>Ucavanje ocena...</p>
+            ) : sellerRatings.length ? (
+              <div className="flex flex-col gap-3">
+                {sellerRatings.map((rating) => (
+                  <article
+                    key={rating.transactionId}
+                    className="card"
+                    style={{ background: "var(--win11-surface-subtle)", padding: "18px" }}
+                  >
+                    <div
+                      className="flex justify-between gap-3"
+                      style={{ alignItems: "flex-start", flexWrap: "wrap", marginBottom: "10px" }}
+                    >
+                      <div>
+                        <strong>{rating.adTitle}</strong>
+                        <p style={{ margin: "6px 0 0" }}>{new Date(rating.createdAt).toLocaleDateString()}</p>
+                      </div>
+                      <div
+                        style={{
+                          padding: "6px 10px",
+                          borderRadius: "999px",
+                          background: "var(--win11-accent-soft)",
+                          color: "var(--win11-accent-pressed)",
+                          fontWeight: 700,
+                        }}
+                      >
+                        {rating.score}/5
+                      </div>
+                    </div>
+                    <p style={{ marginBottom: 0 }}>
+                      {rating.comment?.trim() ? rating.comment : "Kupac nije ostavio komentar."}
+                    </p>
+                  </article>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </>
   );
 };
