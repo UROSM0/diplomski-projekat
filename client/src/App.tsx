@@ -18,6 +18,7 @@ import { AuditLogsPage } from "./pages/AuditLogsPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { ChatPage } from "./pages/ChatPage";
 import { NotificationsPage } from "./pages/NotificationsPage";
+import { TransactionsPage } from "./pages/TransactionsPage";
 import { MarketplaceAllPage } from "./pages/marketplace/MarketplaceAllPage";
 import { MarketplaceAdDetailsPage } from "./pages/marketplace/MarketplaceAdDetailsPage";
 import { MarketplaceCreatePage } from "./pages/marketplace/MarketplaceCreatePage";
@@ -40,7 +41,15 @@ function App() {
           path="/dashboard"
           element={
             <ProtectedRoute requiredRole="admin,manager,user">
-              <DashboardPage userAPI={user_api} transactionAPI={transaction_api} />
+              <DashboardPage userAPI={user_api} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/transactions"
+          element={
+            <ProtectedRoute requiredRole="admin,manager,user">
+              <TransactionsPage userAPI={user_api} transactionAPI={transaction_api} />
             </ProtectedRoute>
           }
         />

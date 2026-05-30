@@ -482,40 +482,67 @@ hr {
 .page-main {
   max-width: 1160px;
   margin: 0 auto;
-  padding: 34px 20px 56px;
+  padding: 22px 20px 48px;
 }
 
 .page-hero {
-  padding: 34px;
+  padding: 18px 22px;
   background:
-    linear-gradient(135deg, rgba(255, 250, 243, 0.98) 0%, rgba(245, 236, 223, 0.9) 100%);
+    linear-gradient(135deg, rgba(255, 252, 247, 0.96) 0%, rgba(244, 236, 225, 0.78) 100%);
+  box-shadow: var(--win11-shadow-small);
 }
 
 .page-hero-tight {
-  padding: 26px 30px;
+  padding: 16px 20px;
+}
+
+.page-hero h1 {
+  margin-bottom: 0;
+  font-size: clamp(1.45rem, 2vw, 2rem);
+}
+
+.page-hero .card {
+  padding: 16px 18px;
+  border-radius: 20px;
+  box-shadow: none;
+  background: rgba(255, 255, 252, 0.76);
+  border: 1px solid rgba(92, 79, 62, 0.08);
+}
+
+.page-hero .card:hover {
+  transform: none;
+  box-shadow: none;
+  border-color: rgba(92, 79, 62, 0.08);
 }
 
 .hero-kicker {
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 7px 12px;
+  padding: 5px 10px;
   border-radius: 999px;
   background: rgba(125, 140, 99, 0.1);
   border: 1px solid rgba(125, 140, 99, 0.16);
-  margin-bottom: 18px;
-  font-size: 0.74rem;
+  margin-bottom: 8px;
+  font-size: 0.68rem;
   font-weight: 700;
   color: var(--win11-accent-hover);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.12em;
 }
 
 .hero-actions {
   display: flex;
-  gap: 12px;
+  gap: 10px;
   flex-wrap: wrap;
-  margin-top: 24px;
+  margin-top: 12px;
+}
+
+.hero-actions .btn,
+.page-hero .btn,
+.section-tab {
+  min-height: 40px;
+  font-size: 0.9rem;
 }
 
 .section-heading {
@@ -524,7 +551,7 @@ hr {
   gap: 16px;
   align-items: center;
   flex-wrap: wrap;
-  margin-bottom: 18px;
+  margin-bottom: 14px;
 }
 
 .soft-card {
@@ -722,12 +749,12 @@ hr {
 
 .section-tabs {
   display: flex;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
 .section-tab {
-  padding: 10px 16px;
+  padding: 8px 12px;
   border-radius: 999px;
   border: 1px solid rgba(92, 79, 62, 0.1);
   background: rgba(255, 255, 255, 0.42);
@@ -824,11 +851,11 @@ hr {
   }
 
   .page-main {
-    padding: 24px 16px 40px;
+    padding: 18px 16px 36px;
   }
 
   .page-hero {
-    padding: 24px;
+    padding: 16px;
   }
 
   .titlebar {

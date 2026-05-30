@@ -98,9 +98,9 @@ export const AdminUsersPage: React.FC<AdminUsersPageProps> = ({ userAPI }) => {
       <DashboardNavbar userAPI={userAPI} activePage="admin-users" />
 
       <main className="page-main" style={{ maxWidth: "1160px" }}>
-        <section className="card page-hero" style={{ marginBottom: "24px" }}>
+        <section className="card page-hero page-hero-tight" style={{ marginBottom: "16px" }}>
           <div className="hero-kicker">Administracija</div>
-          <h1 style={{ marginBottom: "12px" }}>Upravljanje korisnicima</h1>
+          <h1>Upravljanje korisnicima</h1>
         </section>
 
         {pageError ? (

@@ -1,23 +1,19 @@
 import React, { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { getErrorMessage } from "../api/shared/apiError";
-import { ITransactionAPI } from "../api/transactions/ITransactionAPI";
 import { IUserAPI } from "../api/users/IUserAPI";
 import { DashboardNavbar } from "../components/dashboard/navbar/Navbar";
 import { useAuth } from "../hooks/useAuthHook";
-import { CreateRatingDTO } from "../models/transactions/CreateRatingDTO";
-import { TransactionDTO } from "../models/transactions/TransactionDTO";
 import { ChangePasswordDTO } from "../models/users/ChangePasswordDTO";
 import { UserDTO } from "../models/users/UserDTO";
 import { UpdateUserProfileDTO } from "../models/users/UpdateUserProfileDTO";
 import { formatRoleLabel, formatUserStatusLabel } from "../utils/userDisplay";
 
 type DashboardPageProps = {
-  transactionAPI: ITransactionAPI;
   userAPI: IUserAPI;
 };
 
-export const DashboardPage: React.FC<DashboardPageProps> = ({ transactionAPI, userAPI }) => {
+export const DashboardPage: React.FC<DashboardPageProps> = ({ userAPI }) => {
   const { token, user: authUser } = useAuth();
   const isAdmin = authUser?.role?.toUpperCase() === "ADMIN";
   const [user, setUser] = useState<UserDTO | null>(null);
@@ -38,12 +34,6 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ transactionAPI, us
   const [isSavingProfile, setIsSavingProfile] = useState(false);
   const [isTopUpLoading, setIsTopUpLoading] = useState(false);
   const [isChangingPassword, setIsChangingPassword] = useState(false);
-  const [purchaseTransactions, setPurchaseTransactions] = useState<TransactionDTO[]>([]);
-  const [saleTransactions, setSaleTransactions] = useState<TransactionDTO[]>([]);
-  const [isTransactionsLoading, setIsTransactionsLoading] = useState(false);
-  const [transactionsError, setTransactionsError] = useState("");
-  const [transactionsMessage, setTransactionsMessage] = useState("");
-  const [ratingDrafts, setRatingDrafts] = useState<Record<string, { score: string; comment: string }>>({});
 
   useEffect(() => {
     const fetchCurrentUser = async () => {
@@ -69,44 +59,6 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ transactionAPI, us
 
     void fetchCurrentUser();
   }, [token, userAPI]);
-
-  useEffect(() => {
-    const fetchTransactions = async () => {
-      if (!token) {
-        setPurchaseTransactions([]);
-        setSaleTransactions([]);
-        return;
-      }
-
-      setIsTransactionsLoading(true);
-      setTransactionsError("");
-
-      try {
-        const [purchases, sales] = await Promise.all([
-          transactionAPI.getMyPurchases(token),
-          transactionAPI.getMySales(token),
-        ]);
-
-        setPurchaseTransactions(purchases);
-        setSaleTransactions(sales);
-        setRatingDrafts(
-          purchases.reduce<Record<string, { score: string; comment: string }>>((drafts, transaction) => {
-            drafts[transaction.id] = {
-              score: transaction.rating?.score?.toString() ?? "5",
-              comment: transaction.rating?.comment ?? "",
-            };
-            return drafts;
-          }, {})
-        );
-      } catch (error) {
-        setTransactionsError(getErrorMessage(error, "Ucavanje transakcija nije uspelo."));
-      } finally {
-        setIsTransactionsLoading(false);
-      }
-    };
-
-    void fetchTransactions();
-  }, [token, transactionAPI]);
 
   const displayName = user
     ? `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.username
@@ -168,65 +120,27 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ transactionAPI, us
     }
   };
 
-  const handleRatingDraftChange = (
-    transactionId: string,
-    field: keyof CreateRatingDTO | "score",
-    value: string
-  ) => {
-    setRatingDrafts((current) => ({
-      ...current,
-      [transactionId]: {
-        ...(current[transactionId] ?? { score: "5", comment: "" }),
-        [field]: value,
-      },
-    }));
-  };
-
-  const handleCreateRating = async (transactionId: string) => {
-    if (!token) return;
-
-    setTransactionsMessage("");
-
-    try {
-      const draft = ratingDrafts[transactionId] ?? { score: "5", comment: "" };
-      const updatedTransaction = await transactionAPI.createRating(token, transactionId, {
-        score: Number(draft.score),
-        comment: draft.comment,
-      });
-
-      setPurchaseTransactions((current) =>
-        current.map((transaction) => (transaction.id === transactionId ? updatedTransaction : transaction))
-      );
-      setTransactionsMessage("Ocena je uspesno sacuvana.");
-    } catch (error) {
-      setTransactionsMessage(getErrorMessage(error, "Cuvanje ocene nije uspelo."));
-    }
-  };
-
-  const formatPrice = (value: number) => `${value.toFixed(2)} RSD`;
-
   return (
     <div className="page-shell">
       <DashboardNavbar userAPI={userAPI} activePage="dashboard" />
 
       <main className="page-main" style={{ maxWidth: "1120px" }}>
-        <section className="card page-hero" style={{ marginBottom: "24px" }}>
-          <div className="flex justify-between gap-4" style={{ flexWrap: "wrap" }}>
-            <div style={{ maxWidth: "620px" }}>
+        <section className="card page-hero page-hero-tight" style={{ marginBottom: "16px" }}>
+          <div className="flex justify-between gap-3" style={{ flexWrap: "wrap", alignItems: "center" }}>
+            <div style={{ maxWidth: "520px" }}>
               <div className="hero-kicker">Nalog</div>
-              <h1 style={{ marginBottom: "12px" }}>Zdravo, {displayName}</h1>
+              <h1>Zdravo, {displayName}</h1>
             </div>
 
             <div
               className="card"
               style={{
-                minWidth: "250px",
-                padding: "20px",
+                minWidth: "220px",
                 background: "var(--win11-surface-elevated)",
                 border: "1px solid rgba(92, 79, 62, 0.08)",
               }}
             >
-              <h3 style={{ marginBottom: "12px" }}>Pregled naloga</h3>
+              <h3 style={{ marginBottom: "10px" }}>Pregled naloga</h3>
               <p style={{ marginBottom: "8px" }}>
                 <strong>Korisnicko ime:</strong> {authUser?.username ?? "-"}
               </p>
@@ -236,9 +150,12 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ transactionAPI, us
               <p style={{ marginBottom: 0 }}><strong>Status:</strong> {formatUserStatusLabel(user?.status ?? "Ucavanje...")}</p>
             </div>
           </div>
-          <div className="flex gap-3" style={{ marginTop: "24px", flexWrap: "wrap" }}>
+          <div className="hero-actions">
             <Link className="btn btn-accent" to="/marketplace/all">
               Idi na oglase
+            </Link>
+            <Link className="btn btn-standard" to="/transactions">
+              Istorija transakcija
             </Link>
           </div>
         </section>
@@ -277,6 +194,13 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ transactionAPI, us
             <p style={{ marginBottom: 0 }}>
               {typeof user?.balance === "number" ? `${user.balance.toFixed(2)} RSD` : "0.00 RSD"}
             </p>
+          </article>
+          <article className="card">
+            <h3>Transakcije</h3>
+            <p style={{ marginBottom: "14px" }}>Kupovine, prodaje i ocene su sada na posebnoj stranici.</p>
+            <Link className="btn btn-standard" to="/transactions">
+              Otvori transakcije
+            </Link>
           </article>
           <article className="card">
             <h3>ID korisnika</h3>
@@ -391,152 +315,6 @@ export const DashboardPage: React.FC<DashboardPageProps> = ({ transactionAPI, us
             </form>
             {passwordMessage ? <p style={{ marginTop: "12px", marginBottom: 0 }}>{passwordMessage}</p> : null}
           </article>
-        </section>
-
-        <section className="card" style={{ marginTop: "24px" }}>
-          <div
-            className="flex justify-between gap-4"
-            style={{ alignItems: "center", flexWrap: "wrap", marginBottom: "20px" }}
-          >
-            <div>
-              <h2 style={{ marginBottom: "8px" }}>Istorija transakcija</h2>
-            </div>
-            {transactionsMessage ? <p style={{ marginBottom: 0 }}>{transactionsMessage}</p> : null}
-          </div>
-
-          {transactionsError ? <p>{transactionsError}</p> : null}
-          {isTransactionsLoading ? (
-            <p style={{ marginBottom: 0 }}>Ucavanje transakcija...</p>
-          ) : (
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))",
-                gap: "16px",
-              }}
-            >
-              <article className="card" style={{ background: "var(--win11-surface-subtle)" }}>
-                <h3 style={{ marginBottom: "8px" }}>Moje kupovine</h3>
-                {purchaseTransactions.length ? (
-                  <div className="flex flex-col gap-4">
-                    {purchaseTransactions.map((transaction) => (
-                      <div
-                        key={transaction.id}
-                        className="card"
-                        style={{ background: "var(--win11-surface-elevated)", padding: "16px" }}
-                      >
-                        <div className="flex gap-3" style={{ alignItems: "center", marginBottom: "12px" }}>
-                          {transaction.adImageUrl ? (
-                            <img
-                              src={transaction.adImageUrl}
-                              alt={transaction.adTitle}
-                              style={{
-                                width: "72px",
-                                height: "72px",
-                                objectFit: "cover",
-                                borderRadius: "12px",
-                                border: "1px solid var(--win11-divider)",
-                              }}
-                            />
-                          ) : null}
-                          <div>
-                            <strong>{transaction.adTitle}</strong>
-                            <p style={{ marginBottom: "4px" }}>{formatPrice(transaction.amount)}</p>
-                            <p style={{ marginBottom: 0, color: "var(--win11-text-tertiary)" }}>
-                              {new Date(transaction.createdAt).toLocaleString()}
-                            </p>
-                          </div>
-                        </div>
-
-                        {transaction.rating ? (
-                          <p style={{ marginBottom: 0 }}>
-                            Tvoja ocena: <strong>{transaction.rating.score}/5</strong>
-                            {transaction.rating.comment ? ` - ${transaction.rating.comment}` : ""}
-                          </p>
-                        ) : (
-                          <div className="flex flex-col gap-3">
-                            <select
-                              value={ratingDrafts[transaction.id]?.score ?? "5"}
-                              onChange={(event) =>
-                                handleRatingDraftChange(transaction.id, "score", event.target.value)
-                              }
-                            >
-                              <option value="5">5</option>
-                              <option value="4">4</option>
-                              <option value="3">3</option>
-                              <option value="2">2</option>
-                              <option value="1">1</option>
-                            </select>
-                            <textarea
-                              placeholder="Dodaj komentar o prodavcu"
-                              value={ratingDrafts[transaction.id]?.comment ?? ""}
-                              onChange={(event) =>
-                                handleRatingDraftChange(transaction.id, "comment", event.target.value)
-                              }
-                            />
-                            <button
-                              className="btn btn-accent"
-                              type="button"
-                              onClick={() => void handleCreateRating(transaction.id)}
-                            >
-                              Sacuvaj ocenu
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p style={{ marginBottom: 0 }}>Još nemaš nijednu kupovinu.</p>
-                )}
-              </article>
-
-              <article className="card" style={{ background: "var(--win11-surface-subtle)" }}>
-                <h3 style={{ marginBottom: "8px" }}>Moje prodaje</h3>
-                {saleTransactions.length ? (
-                  <div className="flex flex-col gap-4">
-                    {saleTransactions.map((transaction) => (
-                      <div
-                        key={transaction.id}
-                        className="card"
-                        style={{ background: "var(--win11-surface-elevated)", padding: "16px" }}
-                      >
-                        <div className="flex gap-3" style={{ alignItems: "center", marginBottom: "12px" }}>
-                          {transaction.adImageUrl ? (
-                            <img
-                              src={transaction.adImageUrl}
-                              alt={transaction.adTitle}
-                              style={{
-                                width: "72px",
-                                height: "72px",
-                                objectFit: "cover",
-                                borderRadius: "12px",
-                                border: "1px solid var(--win11-divider)",
-                              }}
-                            />
-                          ) : null}
-                          <div>
-                            <strong>{transaction.adTitle}</strong>
-                            <p style={{ marginBottom: "4px" }}>{formatPrice(transaction.amount)}</p>
-                            <p style={{ marginBottom: 0, color: "var(--win11-text-tertiary)" }}>
-                              {new Date(transaction.createdAt).toLocaleString()}
-                            </p>
-                          </div>
-                        </div>
-                        <p style={{ marginBottom: 0 }}>
-                          {transaction.rating
-                            ? `Kupac je ostavio ocenu ${transaction.rating.score}/5${transaction.rating.comment ? ` - ${transaction.rating.comment}` : ""}`
-                            : "Kupac još nije ostavio ocenu."}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p style={{ marginBottom: 0 }}>Još nemaš nijednu prodaju.</p>
-                )}
-              </article>
-            </div>
-          )}
         </section>
 
       </main>

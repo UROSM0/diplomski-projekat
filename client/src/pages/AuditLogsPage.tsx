@@ -5,6 +5,11 @@ import { IUserAPI } from "../api/users/IUserAPI";
 import { DashboardNavbar } from "../components/dashboard/navbar/Navbar";
 import { useAuth } from "../hooks/useAuthHook";
 import { AuditLogDTO } from "../models/audit/AuditLogDTO";
+import {
+  formatAuditActionLabel,
+  formatAuditDescription,
+  formatAuditServiceLabel,
+} from "../utils/activityDisplay";
 
 type AuditLogsPageProps = {
   auditAPI: IAuditAPI;
@@ -54,9 +59,9 @@ export const AuditLogsPage: React.FC<AuditLogsPageProps> = ({ auditAPI, userAPI 
       <DashboardNavbar userAPI={userAPI} activePage="audit" />
 
       <main className="page-main" style={{ maxWidth: "1160px" }}>
-        <section className="card page-hero" style={{ marginBottom: "24px" }}>
+        <section className="card page-hero page-hero-tight" style={{ marginBottom: "16px" }}>
           <div className="hero-kicker">Administracija</div>
-          <h1 style={{ marginBottom: "12px" }}>Evidencija aktivnosti</h1>
+          <h1>Evidencija aktivnosti</h1>
         </section>
 
         <section className="card" style={{ marginBottom: "24px" }}>
@@ -98,10 +103,10 @@ export const AuditLogsPage: React.FC<AuditLogsPageProps> = ({ auditAPI, userAPI 
                 >
                   <div className="flex justify-between gap-3" style={{ flexWrap: "wrap" }}>
                     <div>
-                      <strong>{log.action}</strong>
-                      <p style={{ margin: "6px 0" }}>{log.description}</p>
+                      <strong>{formatAuditActionLabel(log.action)}</strong>
+                      <p style={{ margin: "6px 0" }}>{formatAuditDescription(log.description)}</p>
                       <p style={{ marginBottom: 0, color: "var(--win11-text-tertiary)" }}>
-                        {log.service} {log.userId ? `- ${log.userId}` : ""}
+                        {formatAuditServiceLabel(log.service)} {log.userId ? `- ${log.userId}` : ""}
                       </p>
                     </div>
                     <span style={{ color: "var(--win11-text-tertiary)", fontSize: "12px" }}>

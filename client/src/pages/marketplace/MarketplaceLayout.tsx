@@ -17,11 +17,11 @@ export const MarketplaceLayout: React.FC<MarketplaceLayoutProps> = ({ userAPI })
       <DashboardNavbar userAPI={userAPI} activePage="marketplace" />
 
       <main className="page-main" style={{ maxWidth: "1240px" }}>
-        <section className="card page-hero" style={{ marginBottom: "24px" }}>
-          <div className="flex justify-between gap-4" style={{ flexWrap: "wrap", alignItems: "center" }}>
-            <div style={{ maxWidth: "720px" }}>
+        <section className="card page-hero page-hero-tight" style={{ marginBottom: "16px" }}>
+          <div className="flex justify-between gap-3" style={{ flexWrap: "wrap", alignItems: "center" }}>
+            <div style={{ maxWidth: "520px" }}>
               <div className="hero-kicker">Oglasi</div>
-              <h1 style={{ marginBottom: "12px" }}>Prodaja i kupovina</h1>
+              <h1>Prodaja i kupovina</h1>
             </div>
 
             <div className="flex gap-3" style={{ flexWrap: "wrap" }}>
@@ -31,7 +31,7 @@ export const MarketplaceLayout: React.FC<MarketplaceLayoutProps> = ({ userAPI })
             </div>
           </div>
 
-          <div className="section-tabs" style={{ marginTop: "24px" }}>
+          <div className="section-tabs" style={{ marginTop: "14px" }}>
             <NavLink
               to="/marketplace/all"
               className={({ isActive }) =>

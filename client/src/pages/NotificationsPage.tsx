@@ -4,6 +4,11 @@ import { IUserAPI } from "../api/users/IUserAPI";
 import { DashboardNavbar } from "../components/dashboard/navbar/Navbar";
 import { useAuth } from "../hooks/useAuthHook";
 import { NotificationDTO } from "../models/users/NotificationDTO";
+import {
+  formatNotificationContent,
+  formatNotificationTitle,
+  formatNotificationTypeLabel,
+} from "../utils/activityDisplay";
 
 type NotificationsPageProps = {
   userAPI: IUserAPI;
@@ -115,13 +120,13 @@ export const NotificationsPage: React.FC<NotificationsPageProps> = ({ userAPI })
       <DashboardNavbar userAPI={userAPI} activePage="notifications" />
 
       <main className="page-main" style={{ maxWidth: "1080px" }}>
-        <section className="card page-hero page-hero-tight" style={{ marginBottom: "24px" }}>
+        <section className="card page-hero page-hero-tight" style={{ marginBottom: "16px" }}>
           <div
             className="flex justify-between gap-3"
-            style={{ alignItems: "center", flexWrap: "wrap", marginBottom: "16px" }}
+            style={{ alignItems: "center", flexWrap: "wrap", marginBottom: "12px" }}
           >
             <div>
-              <h1 style={{ marginBottom: "8px" }}>Obavestenja</h1>
+              <h1>Obavestenja</h1>
             </div>
             <button
               className="btn btn-accent"
@@ -133,7 +138,7 @@ export const NotificationsPage: React.FC<NotificationsPageProps> = ({ userAPI })
             </button>
           </div>
 
-          <div className="flex gap-3" style={{ flexWrap: "wrap", alignItems: "center" }}>
+          <div className="hero-actions" style={{ alignItems: "center" }}>
             <button
               className={!showUnreadOnly ? "btn btn-accent" : "btn btn-ghost"}
               type="button"
@@ -183,7 +188,7 @@ export const NotificationsPage: React.FC<NotificationsPageProps> = ({ userAPI })
                       className="flex gap-2"
                       style={{ alignItems: "center", flexWrap: "wrap", marginBottom: "8px" }}
                     >
-                      <strong>{notification.title}</strong>
+                      <strong>{formatNotificationTitle(notification.title, notification.type)}</strong>
                       <span
                         style={{
                           fontSize: "11px",
@@ -192,7 +197,7 @@ export const NotificationsPage: React.FC<NotificationsPageProps> = ({ userAPI })
                           color: "var(--win11-text-tertiary)",
                         }}
                       >
-                        {notification.type.split("_").join(" ")}
+                        {formatNotificationTypeLabel(notification.type)}
                       </span>
                       {!notification.isRead ? (
                         <span
@@ -206,7 +211,7 @@ export const NotificationsPage: React.FC<NotificationsPageProps> = ({ userAPI })
                         </span>
                       ) : null}
                     </div>
-                    <p style={{ marginBottom: "10px" }}>{notification.content}</p>
+                    <p style={{ marginBottom: "10px" }}>{formatNotificationContent(notification.content)}</p>
                     <p style={{ marginBottom: 0, fontSize: "12px", color: "var(--win11-text-tertiary)" }}>
                       {new Date(notification.createdAt).toLocaleString()}
                     </p>

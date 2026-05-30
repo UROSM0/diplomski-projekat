@@ -169,10 +169,10 @@ export const ChatPage: React.FC<ChatPageProps> = ({ chatAPI, userAPI }) => {
       <DashboardNavbar userAPI={userAPI} activePage="chat" />
 
       <main className="page-main" style={{ maxWidth: "1180px" }}>
-        <section className="card page-hero page-hero-tight" style={{ marginBottom: "20px" }}>
+        <section className="card page-hero page-hero-tight" style={{ marginBottom: "16px" }}>
           <div className="flex justify-between gap-3" style={{ alignItems: "center", flexWrap: "wrap" }}>
             <div>
-              <h1 style={{ marginBottom: "8px" }}>Poruke</h1>
+              <h1>Poruke</h1>
             </div>
             {pageError ? <p style={{ marginBottom: 0 }}>{pageError}</p> : null}
           </div>

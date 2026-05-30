@@ -96,8 +96,8 @@ export class GatewayService implements IGatewayService {
         action: response.data.success ? "login" : "login_failed",
         service: "gateway/auth",
         description: response.data.success
-          ? `User ${data.username} logged in.`
-          : `Failed login attempt for ${data.username}.`,
+          ? `Korisnik ${data.username} se prijavio.`
+          : `Neuspesan pokusaj prijave za korisnika ${data.username}.`,
         metadata: { username: data.username },
       });
       return response.data;
@@ -105,7 +105,7 @@ export class GatewayService implements IGatewayService {
       await this.logAudit({
         action: "login_failed",
         service: "gateway/auth",
-        description: `Failed login attempt for ${data.username}.`,
+        description: `Neuspesan pokusaj prijave za korisnika ${data.username}.`,
         metadata: { username: data.username },
       });
       return this.handleAuthError(error, "Login failed.");
@@ -120,8 +120,8 @@ export class GatewayService implements IGatewayService {
         action: response.data.success ? "register" : "register_failed",
         service: "gateway/auth",
         description: response.data.success
-          ? `User ${data.username} registered.`
-          : `Failed registration for ${data.username}.`,
+          ? `Korisnik ${data.username} je registrovan.`
+          : `Neuspela registracija za korisnika ${data.username}.`,
         metadata: { username: data.username, email: data.email },
       });
       return response.data;
@@ -129,7 +129,7 @@ export class GatewayService implements IGatewayService {
       await this.logAudit({
         action: "register_failed",
         service: "gateway/auth",
-        description: `Failed registration for ${data.username}.`,
+        description: `Neuspela registracija za korisnika ${data.username}.`,
         metadata: { username: data.username, email: data.email },
       });
       return this.handleAuthError(error, "Registration failed.");
@@ -151,7 +151,7 @@ export class GatewayService implements IGatewayService {
       await this.logAudit({
         action: "logout",
         service: "gateway/auth",
-        description: "User logged out.",
+        description: "Korisnik se odjavio.",
       });
       return response.data;
     } catch (error) {
@@ -169,7 +169,7 @@ export class GatewayService implements IGatewayService {
         userId,
         action: "change_password",
         service: "gateway/auth",
-        description: "User changed password.",
+        description: "Korisnik je promenio lozinku.",
       });
       return response.data;
     } catch (error) {
@@ -199,7 +199,7 @@ export class GatewayService implements IGatewayService {
       userId,
       action: "add_favorite",
       service: "gateway/user",
-      description: `User added ad ${data.adId} to favorites.`,
+      description: `Oglas ${data.adId} je dodat u omiljene.`,
       metadata: { adId: data.adId },
     });
     return response.data;
@@ -211,7 +211,7 @@ export class GatewayService implements IGatewayService {
       userId,
       action: "remove_favorite",
       service: "gateway/user",
-      description: `User removed ad ${adId} from favorites.`,
+      description: `Oglas ${adId} je uklonjen iz omiljenih.`,
       metadata: { adId },
     });
   }
@@ -246,7 +246,7 @@ export class GatewayService implements IGatewayService {
         userId: id,
         action: "change_user_access",
         service: "gateway/user",
-        description: `User access changed for ${id}.`,
+        description: `Pristup je promenjen za korisnika ${id}.`,
         metadata: data as Record<string, unknown>,
       });
       return response.data;
@@ -270,7 +270,7 @@ export class GatewayService implements IGatewayService {
       userId: id,
       action: "update_profile",
       service: "gateway/user",
-      description: "User profile updated.",
+      description: "Profil korisnika je azuriran.",
     });
     return response.data;
   }
@@ -281,7 +281,7 @@ export class GatewayService implements IGatewayService {
       userId: id,
       action: "top_up",
       service: "gateway/user",
-      description: `User topped up wallet by ${data.amount}.`,
+      description: `Novcanik je dopunjen za ${data.amount}.`,
       metadata: { amount: data.amount },
     });
     return response.data;
@@ -298,7 +298,7 @@ export class GatewayService implements IGatewayService {
     await this.logAudit({
       action: "create_category",
       service: "gateway/ad",
-      description: `Category ${data.name} created.`,
+      description: `Kategorija ${data.name} je kreirana.`,
       metadata: { name: data.name },
     });
     return response.data;
@@ -345,7 +345,7 @@ export class GatewayService implements IGatewayService {
       userId,
       action: "create_ad",
       service: "gateway/ad",
-      description: `User created ad ${response.data.id}.`,
+      description: `Kreiran je oglas ${response.data.id}.`,
       metadata: { adId: response.data.id, title: response.data.title },
     });
     return response.data;
@@ -366,7 +366,7 @@ export class GatewayService implements IGatewayService {
       userId,
       action: "update_ad",
       service: "gateway/ad",
-      description: `User updated ad ${adId}.`,
+      description: `Izmenjen je oglas ${adId}.`,
       metadata: { adId },
     });
     return response.data;
@@ -382,7 +382,7 @@ export class GatewayService implements IGatewayService {
       userId,
       action: "delete_ad",
       service: "gateway/ad",
-      description: `User deleted ad ${adId}.`,
+      description: `Obrisan je oglas ${adId}.`,
       metadata: { adId },
     });
   }
@@ -396,16 +396,16 @@ export class GatewayService implements IGatewayService {
       userId: moderatorId,
       action: data.status?.toLowerCase() === "approved" ? "approve_ad" : "reject_ad",
       service: "gateway/ad",
-      description: `Moderator changed moderation status for ad ${adId} to ${data.status}.`,
+      description: `Moderator je promenio status oglasa ${adId} na ${data.status}.`,
       metadata: { adId, status: data.status, moderationNote: data.moderationNote },
     });
     const isApproved = data.status?.toUpperCase() === "APPROVED";
     await this.createNotification(response.data.sellerId, {
       type: isApproved ? "AD_APPROVED" : "AD_REJECTED",
-      title: isApproved ? "Ad approved" : "Ad rejected",
+      title: isApproved ? "Oglas je odobren" : "Oglas je odbijen",
       content: isApproved
-        ? `Your ad "${response.data.title}" has been approved and is now visible.`
-        : `Your ad "${response.data.title}" was rejected.${data.moderationNote ? ` Note: ${data.moderationNote}` : ""}`,
+        ? `Vas oglas "${response.data.title}" je odobren i sada je javno vidljiv.`
+        : `Vas oglas "${response.data.title}" je odbijen.${data.moderationNote ? ` Napomena: ${data.moderationNote}` : ""}`,
     });
     return response.data;
   }
@@ -420,18 +420,18 @@ export class GatewayService implements IGatewayService {
         userId: buyerId,
         action: "buy",
         service: "gateway/transaction",
-        description: `User purchased ad ${data.adId}.`,
+        description: `Korisnik je kupio oglas ${data.adId}.`,
         metadata: { adId: data.adId, transactionId: response.data.id },
       });
       await this.createNotification(buyerId, {
         type: "PURCHASE_SUCCESS",
-        title: "Purchase completed",
-        content: `You purchased "${response.data.adTitle}" for ${response.data.amount.toFixed(2)} RSD.`,
+        title: "Kupovina je uspesna",
+        content: `Kupili ste "${response.data.adTitle}" za ${response.data.amount.toFixed(2)} RSD.`,
       });
       await this.createNotification(response.data.sellerId, {
         type: "PURCHASE_SUCCESS",
-        title: "Ad sold",
-        content: `Your ad "${response.data.adTitle}" has been sold for ${response.data.amount.toFixed(2)} RSD.`,
+        title: "Oglas je prodat",
+        content: `Vas oglas "${response.data.adTitle}" je prodat za ${response.data.amount.toFixed(2)} RSD.`,
       });
       return response.data;
     } catch (error) {
@@ -459,13 +459,13 @@ export class GatewayService implements IGatewayService {
         userId: buyerId,
         action: "rate_transaction",
         service: "gateway/transaction",
-        description: `User rated transaction ${transactionId}.`,
+        description: `Korisnik je ocenio transakciju ${transactionId}.`,
         metadata: { transactionId, score: data.score },
       });
       await this.createNotification(response.data.sellerId, {
         type: "NEW_RATING",
-        title: "New rating received",
-        content: `You received a rating of ${data.score}/5 for "${response.data.adTitle}".`,
+        title: "Stigla je nova ocena",
+        content: `Dobili ste ocenu ${data.score}/5 za oglas "${response.data.adTitle}".`,
       });
       return response.data;
     } catch (error) {
@@ -482,7 +482,7 @@ export class GatewayService implements IGatewayService {
       userId,
       action: "open_conversation",
       service: "gateway/chat",
-      description: `User opened conversation for ad ${data.adId}.`,
+      description: `Otvoren je razgovor za oglas ${data.adId}.`,
       metadata: { adId: data.adId, conversationId: response.data.id },
     });
     return response.data;
@@ -512,13 +512,13 @@ export class GatewayService implements IGatewayService {
       userId,
       action: "send_message",
       service: "gateway/chat",
-      description: `User sent a message in conversation ${conversationId}.`,
+      description: `Poslata je poruka u razgovoru ${conversationId}.`,
       metadata: { conversationId, messageId: response.data.id },
     });
     await this.createNotification(recipientId, {
       type: "NEW_MESSAGE",
-      title: "New chat message",
-      content: `You have a new message about "${conversation.adTitle}".`,
+      title: "Stigla je nova poruka",
+      content: `Imate novu poruku za oglas "${conversation.adTitle}".`,
     });
     return response.data;
   }
