@@ -334,6 +334,61 @@ export const MarketplaceAdDetailsPage: React.FC<MarketplaceAdDetailsPageProps> =
               ))}
             </div>
           ) : null}
+
+          <div
+            style={{
+              marginTop: "18px",
+              padding: "18px",
+              borderRadius: "18px",
+              border: "1px solid var(--win11-divider)",
+              background: "rgba(255, 255, 255, 0.45)",
+            }}
+          >
+            <p
+              style={{
+                fontSize: "12px",
+                textTransform: "uppercase",
+                letterSpacing: "0.08em",
+                color: "var(--win11-text-tertiary)",
+                marginBottom: "12px",
+              }}
+            >
+              Brze radnje
+            </p>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+                gap: "12px",
+              }}
+            >
+              <button
+                className="btn btn-standard"
+                type="button"
+                onClick={() => void handleToggleFavorite()}
+                disabled={!token || isUpdatingFavorite}
+              >
+                {isFavorite ? "Ukloni iz omiljenih" : "Dodaj u omiljene"}
+              </button>
+              <button
+                className="btn btn-standard"
+                type="button"
+                onClick={() => void handleStartChat()}
+                disabled={!token || isOwner || isStartingChat}
+              >
+                {isOwner ? "Ovo je tvoj oglas" : isStartingChat ? "Otvaranje..." : "Poruka prodavcu"}
+              </button>
+              <button
+                className="btn btn-ghost"
+                type="button"
+                onClick={() => void handleOpenSellerRatings()}
+                style={{ justifyContent: "space-between" }}
+              >
+                <span>Sve ocene prodavca</span>
+                <span style={{ color: "var(--win11-text-tertiary)" }}>&rsaquo;</span>
+              </button>
+            </div>
+          </div>
         </article>
 
         <aside className="card">
@@ -375,15 +430,6 @@ export const MarketplaceAdDetailsPage: React.FC<MarketplaceAdDetailsPageProps> =
                 </p>
               </div>
             </div>
-            <button
-              className="btn btn-ghost"
-              type="button"
-              onClick={() => void handleOpenSellerRatings()}
-              style={{ justifyContent: "space-between" }}
-            >
-              <span>Sve ocene prodavca</span>
-              <span style={{ color: "var(--win11-text-tertiary)" }}>&rsaquo;</span>
-            </button>
             <div className="list-item" style={{ cursor: "default" }}>
               <div>
                 <strong>Status</strong>
@@ -393,22 +439,6 @@ export const MarketplaceAdDetailsPage: React.FC<MarketplaceAdDetailsPageProps> =
           </div>
 
           <div className="flex flex-col gap-3">
-            <button
-              className="btn btn-standard"
-              type="button"
-              onClick={() => void handleToggleFavorite()}
-              disabled={!token || isUpdatingFavorite}
-            >
-              {isFavorite ? "Ukloni iz omiljenih" : "Dodaj u omiljene"}
-            </button>
-            <button
-              className="btn btn-standard"
-              type="button"
-              onClick={() => void handleStartChat()}
-              disabled={!token || isOwner || isStartingChat}
-            >
-              {isOwner ? "Ovo je tvoj oglas" : isStartingChat ? "Otvaranje..." : "Poruka prodavcu"}
-            </button>
             <button
               className="btn btn-accent"
               type="button"
