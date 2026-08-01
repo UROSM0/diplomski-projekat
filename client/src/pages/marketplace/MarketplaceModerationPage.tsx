@@ -134,8 +134,17 @@ export const MarketplaceModerationPage: React.FC<MarketplaceModerationPageProps>
 
     setReviewMessage("");
 
+    const moderationDraft = moderationDrafts[adId] ?? { status: "APPROVED" };
+    if (moderationDraft.status === "REJECTED" && !moderationDraft.moderationNote?.trim()) {
+      setReviewMessage("Komentar je obavezan kada se oglas odbija.");
+      return;
+    }
+
     try {
-      await adAPI.moderateAd(token, adId, moderationDrafts[adId] ?? { status: "APPROVED" });
+      await adAPI.moderateAd(token, adId, {
+        ...moderationDraft,
+        moderationNote: moderationDraft.moderationNote?.trim(),
+      });
       await refreshReviewAds();
       setReviewMessage("Odluka moderacije je sacuvana.");
     } catch (error) {
@@ -206,7 +215,12 @@ export const MarketplaceModerationPage: React.FC<MarketplaceModerationPageProps>
                         <option value="REJECTED">ODBIJ</option>
                       </select>
                       <textarea
-                        placeholder="Napomena moderatora"
+                        placeholder={
+                          moderationDraft.status === "REJECTED"
+                            ? "Komentar pri odbijanju (obavezno)"
+                            : "Napomena moderatora (opciono)"
+                        }
+                        required={moderationDraft.status === "REJECTED"}
                         value={moderationDraft.moderationNote ?? ""}
                         onChange={(event) =>
                           setModerationDrafts((current) => ({
@@ -221,6 +235,10 @@ export const MarketplaceModerationPage: React.FC<MarketplaceModerationPageProps>
                       <button
                         className="btn btn-accent"
                         type="button"
+                        disabled={
+                          moderationDraft.status === "REJECTED" &&
+                          !moderationDraft.moderationNote?.trim()
+                        }
                         onClick={() => void handleModerationSave(ad.id)}
                       >
                         Sacuvaj odluku

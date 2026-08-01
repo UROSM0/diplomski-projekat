@@ -3,6 +3,7 @@ import { IAuthAPI } from "../../api/auth/IAuthAPI";
 import { LoginUserDTO } from "../../models/auth/LoginUserDTO";
 import { useAuth } from "../../hooks/useAuthHook";
 import { useNavigate } from "react-router-dom";
+import { getErrorMessage } from "../../api/shared/apiError";
 
 type LoginFormProps = {
   authAPI: IAuthAPI;
@@ -40,8 +41,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({ authAPI }) => {
       } else {
         setError(response.message || "Prijava nije uspela. Pokusajte ponovo.");
       }
-    } catch (err: any) {
-      setError(err?.message || "Doslo je do greske. Pokusajte ponovo.");
+    } catch (error) {
+      setError(getErrorMessage(error, "Prijava nije uspela. Pokusajte ponovo."));
     } finally {
       setIsLoading(false);
     }

@@ -1,6 +1,9 @@
 import axios from "axios";
 
 const STATIC_MESSAGE_MAP: Record<string, string> = {
+  "Invalid credentials!": "Pogresno korisnicko ime ili lozinka.",
+  "Username must be at least 3 characters long": "Korisnicko ime mora imati najmanje 3 karaktera.",
+  "Password must be at least 6 characters long": "Lozinka mora imati najmanje 6 karaktera.",
   "Unauthorized.": "Morate biti prijavljeni.",
   "You can only access your own data!": "Mozete pristupiti samo svojim podacima.",
   "You cannot change your own role or status.": "Ne mozete menjati sopstvenu rolu ili status.",
@@ -36,6 +39,7 @@ const STATIC_MESSAGE_MAP: Record<string, string> = {
   "Ad description is required.": "Opis oglasa je obavezan.",
   "Invalid ad status.": "Status oglasa nije validan.",
   "Moderation can only set APPROVED or REJECTED status.": "Moderacija moze postaviti samo odobren ili odbijen status.",
+  "Moderation note is required when rejecting an ad.": "Komentar je obavezan kada se oglas odbija.",
   "You cannot start a conversation with yourself.": "Ne mozete zapoceti razgovor sa sobom.",
   "Conversation not found.": "Razgovor nije pronadjen.",
   "Invalid conversation id.": "Identifikator razgovora nije validan.",

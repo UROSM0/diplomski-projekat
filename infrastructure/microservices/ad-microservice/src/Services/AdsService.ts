@@ -220,6 +220,11 @@ export class AdsService implements IAdsService {
       throw new Error("Moderation can only set APPROVED or REJECTED status.");
     }
 
+    const moderationNote = data.moderationNote?.trim();
+    if (normalizedStatus === AD_STATUSES.REJECTED && !moderationNote) {
+      throw new Error("Moderation note is required when rejecting an ad.");
+    }
+
     const existingAd = await this.prisma.ad.findUnique({
       where: { id: adId },
     });
@@ -232,7 +237,7 @@ export class AdsService implements IAdsService {
       where: { id: adId },
       data: {
         status: normalizedStatus,
-        moderationNote: data.moderationNote?.trim() || null,
+        moderationNote: moderationNote || null,
         moderatedById: data.moderatorId,
         moderatedAt: new Date(),
       },
