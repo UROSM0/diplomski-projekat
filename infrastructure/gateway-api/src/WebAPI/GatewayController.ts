@@ -22,6 +22,7 @@ import { GetNotificationsQueryDTO } from "../Domain/DTOs/GetNotificationsQueryDT
 import { authenticate } from "../Middlewares/authentification/AuthMiddleware";
 import { authorize } from "../Middlewares/authorization/AuthorizeMiddleware";
 import { adImagesUploadMiddleware } from "./uploads/AdImageUpload";
+import { AIChatRequestDTO } from "../Domain/DTOs/AIChatRequestDTO";
 
 export class GatewayController {
   private readonly router: Router;
@@ -82,8 +83,91 @@ export class GatewayController {
     this.router.post("/chat/conversations/:id/messages", authenticate, authorize("admin", "manager", "user"), this.sendMessage.bind(this));
     this.router.patch("/chat/conversations/:id/read", authenticate, authorize("admin", "manager", "user"), this.markConversationAsRead.bind(this));
 
-    // Audit
+    // AI support
+    this.router.get("/ai/health", authenticate, authorize("admin", "manager", "user"), this.getAIHealth.bind(this));
+    this.router.post("/ai/chat", authenticate, authorize("admin", "manager", "user"), this.askAI.bind(this));
+    this.router.post("/ai/chat/stream", authenticate, authorize("admin", "manager", "user"), this.streamAI.bind(this));
+    this.router.get("/ai/conversations", authenticate, authorize("admin", "manager", "user"), this.getAIConversations.bind(this));
+    this.router.get("/ai/conversations/:id/messages", authenticate, authorize("admin", "manager", "user"), this.getAIMessages.bind(this));
+    this.router.post("/ai/messages/:id/feedback", authenticate, authorize("admin", "manager", "user"), this.saveAIFeedback.bind(this));
+
+  // Audit
     this.router.get("/audit/logs", authenticate, authorize("admin"), this.getAuditLogs.bind(this));
+  }
+
+  private async getAIHealth(_req: Request, res: Response): Promise<void> {
+    try {
+      const health = await this.gatewayService.getAIHealth();
+      res.status(health.status === "available" ? 200 : 503).json(health);
+    } catch (error) {
+      res.status(503).json({ message: (error as Error).message });
+    }
+  }
+
+  private async askAI(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ message: "Unauthorized." });
+        return;
+      }
+
+      const response = await this.gatewayService.askAI(req.user.id, req.body as AIChatRequestDTO);
+      res.status(200).json(response);
+    } catch (error) {
+      const message = (error as Error).message;
+      const isValidationError = /required|cannot exceed/i.test(message);
+      const isInactive = message === "Your account is not active.";
+      const isUnavailable = /AI support|LM Studio/i.test(message);
+      res.status(isValidationError ? 400 : isInactive ? 403 : isUnavailable ? 503 : 500).json({ message });
+    }
+  }
+
+  private async streamAI(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) {
+        res.status(401).json({ message: "Unauthorized." });
+        return;
+      }
+      const stream = await this.gatewayService.streamAI(req.user.id, req.body as AIChatRequestDTO);
+      res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
+      res.setHeader("Cache-Control", "no-cache, no-transform");
+      res.setHeader("Connection", "keep-alive");
+      stream.pipe(res);
+      stream.on("error", () => res.end());
+    } catch (error) {
+      const message = (error as Error).message;
+      const status = /required|cannot exceed/i.test(message) ? 400 : message === "Your account is not active." ? 403 : 503;
+      res.status(status).json({ message });
+    }
+  }
+
+  private async getAIConversations(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) { res.status(401).json({ message: "Unauthorized." }); return; }
+      res.status(200).json(await this.gatewayService.getAIConversations(req.user.id));
+    } catch (error) { this.sendAIError(res, error); }
+  }
+
+  private async getAIMessages(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) { res.status(401).json({ message: "Unauthorized." }); return; }
+      res.status(200).json(await this.gatewayService.getAIMessages(req.user.id, String(req.params.id)));
+    } catch (error) { this.sendAIError(res, error); }
+  }
+
+  private async saveAIFeedback(req: Request, res: Response): Promise<void> {
+    try {
+      if (!req.user) { res.status(401).json({ message: "Unauthorized." }); return; }
+      if (typeof req.body.helpful !== "boolean") { res.status(400).json({ message: "Ocena odgovora je obavezna." }); return; }
+      await this.gatewayService.saveAIFeedback(req.user.id, String(req.params.id), req.body.helpful, req.body.comment);
+      res.status(204).send();
+    } catch (error) { this.sendAIError(res, error); }
+  }
+
+  private sendAIError(res: Response, error: unknown): void {
+    const message = (error as Error).message;
+    const status = /not found/i.test(message) ? 404 : /rate limit/i.test(message) ? 429 : /required/i.test(message) ? 400 : 503;
+    res.status(status).json({ message });
   }
 
   // Auth

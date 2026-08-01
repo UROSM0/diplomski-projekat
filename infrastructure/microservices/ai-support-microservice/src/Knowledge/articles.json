@@ -1,0 +1,128 @@
+[
+  {
+    "id": "overview",
+    "title": "Namena aplikacije",
+    "source": "Specifikacija, odeljci 1 i 4",
+    "tags": ["aplikacija", "pomoć", "funkcionalnosti"],
+    "content": "Aplikacija je online marketplace za trgovinu polovnim i novim proizvodima. Registrovani korisnici mogu da pregledaju, pretražuju i filtriraju oglase, postavljaju svoje oglase, kupuju proizvode sredstvima iz internog novčanika, razgovaraju sa drugim korisnicima, ocenjuju učesnike završenih transakcija, čuvaju omiljene oglase i pregledaju obaveštenja."
+  },
+  {
+    "id": "registration-login",
+    "title": "Registracija i prijava",
+    "source": "Specifikacija, odeljci 4.1 i 7.2",
+    "tags": ["registracija", "prijava", "nalog", "lozinka"],
+    "content": "Za registraciju se unose korisničko ime, email adresa, lozinka, ime i prezime. Korisničko ime i email moraju biti jedinstveni. Nakon registracije korisnik se prijavljuje korisničkim imenom i lozinkom. Ako su podaci za prijavu pogrešni, aplikacija prikazuje da su korisničko ime ili lozinka neispravni. Blokiran ili neaktivan nalog ne može normalno da koristi zaštićene funkcionalnosti."
+  },
+  {
+    "id": "profile-wallet",
+    "title": "Profil, upravljanje nalogom i novčanik",
+    "source": "Specifikacija, odeljci 4.2, 4.5 i 7.3",
+    "tags": ["profil", "nalog", "novčanik", "doplata", "lozinka"],
+    "content": "Stranica naloga prikazuje informacije o profilu. Izmena profila, promena lozinke i dopuna novčanika nalaze se u delu Upravljanje nalogom. Korisnik može da promeni ime, prezime i profilnu sliku, promeni lozinku i dopuni novčanik unosom pozitivnog iznosa. Novčanik je interni i ne koristi eksterni platni sistem; sredstva se koriste za kupovinu oglasa."
+  },
+  {
+    "id": "roles",
+    "title": "Uloge i dozvole",
+    "source": "Specifikacija, odeljci 3 i 11",
+    "tags": ["administrator", "menadžer", "korisnik", "uloga", "dozvole"],
+    "content": "Postoje uloge administrator, menadžer i korisnik. Korisnik koristi oglase, kupovinu, poruke, profil, novčanik, ocenjivanje, omiljene oglase i obaveštenja. Menadžer ima sve mogućnosti korisnika i dodatno pregleda, odobrava i odbija oglase na moderaciji. Administrator upravlja korisnicima, ulogama i statusima naloga, kategorijama i pregledom evidencije aktivnosti."
+  },
+  {
+    "id": "browse-filter-ads",
+    "title": "Pregled, pretraga i filtriranje oglasa",
+    "source": "Specifikacija, odeljci 4.4 i 7.4; trenutna aplikacija",
+    "tags": ["oglasi", "pretraga", "filter", "kategorija", "cena", "datum"],
+    "content": "Početna stranica aplikacije prikazuje javno dostupne oglase. Oglasi mogu da se pretražuju po nazivu i filtriraju po kategoriji, minimalnoj i maksimalnoj ceni i periodu objavljivanja. Rezultati su paginirani. Javno se prikazuju samo odobreni i aktivni oglasi; odbijeni, oglasi na čekanju i prodati oglasi nisu deo aktivnog javnog listinga."
+  },
+  {
+    "id": "create-ad",
+    "title": "Kreiranje oglasa",
+    "source": "Specifikacija, odeljci 4.3 i 7.4",
+    "tags": ["kreiranje", "nov oglas", "slika", "cena", "kategorija"],
+    "content": "Prijavljeni korisnik kreira oglas unosom naslova, opisa, cene veće od nule, kategorije i slika. Dozvoljeni formati slika su JPG, PNG i WebP u okviru podešenog ograničenja veličine. Novi oglas dobija status PENDING i ne postaje javno vidljiv dok ga menadžer ne odobri."
+  },
+  {
+    "id": "ad-lifecycle",
+    "title": "Statusi i životni ciklus oglasa",
+    "source": "Specifikacija, odeljak 7.4",
+    "tags": ["pending", "approved", "rejected", "sold", "status oglasa"],
+    "content": "Oglas nakon kreiranja ima status PENDING i čeka odluku menadžera. Status APPROVED znači da je oglas odobren i javno vidljiv. Status REJECTED znači da je odbijen i nije javno vidljiv, a vlasnik dobija razlog odbijanja. Nakon uspešne kupovine oglas dobija status SOLD i nestaje iz aktivnih listinga."
+  },
+  {
+    "id": "edit-delete-ad",
+    "title": "Izmena i brisanje sopstvenog oglasa",
+    "source": "Specifikacija, odeljci 3.3 i 7.4; trenutna aplikacija",
+    "tags": ["izmena oglasa", "brisanje oglasa", "moji oglasi"],
+    "content": "Korisnik može da pregleda svoje oglase u delu Moji oglasi. Može da menja i briše samo oglase čiji je vlasnik. Brisanje je dozvoljeno za oglase u statusu PENDING ili REJECTED. Posle izmene podataka oglasa može biti potrebna nova moderacija pre javnog prikaza."
+  },
+  {
+    "id": "moderation",
+    "title": "Moderacija oglasa",
+    "source": "Specifikacija, odeljci 3.2 i 7.4; trenutno pravilo servisa",
+    "tags": ["moderacija", "odobravanje", "odbijanje", "komentar", "menadžer"],
+    "content": "Menadžer pregleda oglase sa statusom PENDING i može da ih odobri ili odbije. Odobren oglas postaje javno vidljiv. Kada menadžer odbija oglas, komentar sa razlogom odbijanja je obavezan i ne može biti prazan ili sadržati samo razmake. Vlasnik oglasa dobija obaveštenje o odluci i napomenu pri odbijanju."
+  },
+  {
+    "id": "categories",
+    "title": "Kategorije oglasa",
+    "source": "Specifikacija, odeljci 4.10 i 7.4",
+    "tags": ["kategorija", "administrator", "filter"],
+    "content": "Svaki oglas pripada jednoj aktivnoj kategoriji koju korisnik bira pri kreiranju. Kategorije se koriste za organizaciju i filtriranje oglasa. Administrator upravlja listom kategorija i može da dodaje kategorije."
+  },
+  {
+    "id": "favorites",
+    "title": "Omiljeni oglasi",
+    "source": "Specifikacija, odeljak 4.11",
+    "tags": ["omiljeni", "sačuvani oglasi", "favoriti"],
+    "content": "Prijavljeni korisnik može da doda oglas u omiljene radi lakšeg kasnijeg pronalaženja. Lista sačuvanih oglasa dostupna je na stranici omiljenih oglasa. Oglas se iz liste može ukloniti kada korisniku više nije potreban."
+  },
+  {
+    "id": "purchase",
+    "title": "Kupovina i prenos sredstava",
+    "source": "Specifikacija, odeljci 4.6 i 7.5; trenutno transakciono pravilo",
+    "tags": ["kupovina", "novac", "stanje", "prodavac", "transakcija"],
+    "content": "Korisnik može da kupi odobren i aktivan oglas drugog korisnika ako ima dovoljno sredstava u novčaniku. Sopstveni oglas nije moguće kupiti. Pri uspešnoj kupovini sredstva se skidaju kupcu i dodaju prodavcu, evidentira se transakcija, a oglas postaje SOLD. Obrada sprečava da dva korisnika istovremeno uspešno kupe isti oglas i da stanje novčanika bude prekoračeno. Ako kupovina ne uspe, sistem ne sme kupcu ili prodavcu ostaviti pogrešno izmenjeno stanje."
+  },
+  {
+    "id": "transactions-ratings",
+    "title": "Istorija transakcija i ocenjivanje",
+    "source": "Specifikacija, odeljci 4.8 i 7.5; trenutna aplikacija",
+    "tags": ["ocena", "ocenjivanje", "kupac", "prodavac", "transakcije"],
+    "content": "Kupac i prodavac mogu da pregledaju svoje završene kupovine i prodaje. Nakon uspešno završene transakcije kupac može da oceni prodavca, a prodavac kupca. Svaki učesnik može da ostavi samo jednu ocenu po transakciji. Ocene imaju vrednost od 1 do 5 i mogu sadržati komentar. Primljene ocene kupca i prodavca prikazuju se na odgovarajućim profilima i u pregledu ocena."
+  },
+  {
+    "id": "chat",
+    "title": "Poruke i razgovori",
+    "source": "Specifikacija, odeljak 7.6; unapređena WebSocket implementacija",
+    "tags": ["poruke", "chat", "razgovor", "websocket", "pročitano"],
+    "content": "Korisnik može da započne razgovor sa drugim korisnikom u vezi sa konkretnim oglasom, ali ne može da započne razgovor sa samim sobom. Učesnici vide samo svoje razgovore i poruke. Nove poruke stižu u realnom vremenu preko WebSocket veze bez ručnog osvežavanja stranice. Sistem prati da li su poruke pročitane."
+  },
+  {
+    "id": "notifications",
+    "title": "Obaveštenja",
+    "source": "Specifikacija, odeljak 4.12; trenutna aplikacija",
+    "tags": ["obaveštenja", "notifikacije", "pročitano"],
+    "content": "Korisnik dobija obaveštenja o važnim događajima: odobrenju ili odbijanju oglasa, novoj poruci, uspešnoj kupovini i pristigloj oceni. Može da pregleda sva obaveštenja, označi pojedinačno obaveštenje kao pročitano ili označi sva kao pročitana."
+  },
+  {
+    "id": "admin-users",
+    "title": "Administracija korisnika",
+    "source": "Specifikacija, odeljci 3.1 i 7.3",
+    "tags": ["admin", "korisnici", "blokiranje", "uloga", "status"],
+    "content": "Administrator može da pregleda registrovane korisnike, menja njihove uloge i upravlja statusom naloga, uključujući aktiviranje i blokiranje. Administrator ne treba da koristi ove kontrole za zaobilaženje pravila pristupa niti da običnim korisnicima izlaže administrativne podatke."
+  },
+  {
+    "id": "audit-log",
+    "title": "Evidencija aktivnosti",
+    "source": "Specifikacija, odeljci 4.9 i 7.7",
+    "tags": ["audit", "aktivnosti", "evidencija", "administrator"],
+    "content": "Važne sistemske akcije beleže se u evidenciji aktivnosti: prijava, registracija, kreiranje, izmena i brisanje oglasa, moderacija, kupovina, promene profila i pristupa, dopuna novčanika, ocenjivanje i slanje poruka. Pregled evidencije je administratorska funkcionalnost i podržava filtriranje zapisa."
+  },
+  {
+    "id": "safety-privacy",
+    "title": "Bezbednost, privatnost i ograničenja podrške",
+    "source": "Specifikacija, odeljci 6, 8 i 9; pravila AI podrške",
+    "tags": ["bezbednost", "privatnost", "lozinka", "podaci", "ai"],
+    "content": "Lozinku, pristupni token i druge tajne podatke ne treba slati kroz oglase, poruke niti AI podršku. AI podrška objašnjava korišćenje aplikacije i dokumentovana pravila, ali ne može da vidi tuđu lozinku, izvrši kupovinu, promeni stanje novčanika, odobri oglas ili menja korisničke naloge. Za radnje nad nalogom korisnik koristi odgovarajuće stranice aplikacije."
+  }
+]

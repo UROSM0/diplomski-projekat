@@ -1,0 +1,54 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum AIMessageRole {
+  USER
+  ASSISTANT
+}
+
+model AIConversation {
+  id        String      @id @default(uuid())
+  userId    String
+  title     String
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  messages  AIMessage[]
+
+  @@index([userId, updatedAt])
+  @@map("ai_conversations")
+}
+
+model AIMessage {
+  id             String         @id @default(uuid())
+  conversationId String
+  role           AIMessageRole
+  content        String
+  model          String?
+  sources        Json?
+  createdAt      DateTime       @default(now())
+  conversation   AIConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  feedback       AIFeedback?
+
+  @@index([conversationId, createdAt])
+  @@map("ai_messages")
+}
+
+model AIFeedback {
+  id        String    @id @default(uuid())
+  messageId String    @unique
+  userId    String
+  helpful   Boolean
+  comment   String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  message   AIMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("ai_feedback")
+}

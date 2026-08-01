@@ -2,6 +2,10 @@ import axios from "axios";
 
 const STATIC_MESSAGE_MAP: Record<string, string> = {
   "Invalid credentials!": "Pogresno korisnicko ime ili lozinka.",
+  "AI support is currently unavailable.": "AI podrska trenutno nije dostupna. Proverite da li su LM Studio i AI servis pokrenuti.",
+  "AI support request failed.": "AI podrska trenutno nije uspela da odgovori.",
+  "Your account is not active.": "Vas nalog trenutno nije aktivan.",
+  "Question is required.": "Unesite pitanje.",
   "Username must be at least 3 characters long": "Korisnicko ime mora imati najmanje 3 karaktera.",
   "Password must be at least 6 characters long": "Lozinka mora imati najmanje 6 karaktera.",
   "Unauthorized.": "Morate biti prijavljeni.",

@@ -7,7 +7,7 @@ import { formatRoleLabel, formatUserDisplayName } from "../../../utils/userDispl
 
 type DashboardNavbarProps = {
   userAPI: IUserAPI;
-  activePage?: "dashboard" | "account-management" | "transactions" | "marketplace" | "chat" | "notifications" | "admin-users" | "audit";
+  activePage?: "dashboard" | "account-management" | "transactions" | "marketplace" | "chat" | "ai-support" | "notifications" | "admin-users" | "audit";
 };
 
 export const DashboardNavbar: React.FC<DashboardNavbarProps> = ({
@@ -107,6 +107,12 @@ export const DashboardNavbar: React.FC<DashboardNavbarProps> = ({
           onClick={() => navigate("/chat")}
         >
           Poruke
+        </button>
+        <button
+          className={activePage === "ai-support" ? "btn topbar-link topbar-link-active" : "btn topbar-link"}
+          onClick={() => navigate("/ai-support")}
+        >
+          AI podrska
         </button>
         <button
           className={activePage === "notifications" ? "btn topbar-link topbar-link-active" : "btn topbar-link"}

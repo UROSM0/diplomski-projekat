@@ -27,6 +27,9 @@ import { MarketplaceFavoritesPage } from "./pages/marketplace/MarketplaceFavorit
 import { MarketplaceLayout } from "./pages/marketplace/MarketplaceLayout";
 import { MarketplaceModerationPage } from "./pages/marketplace/MarketplaceModerationPage";
 import { MarketplaceMyAdsPage } from "./pages/marketplace/MarketplaceMyAdsPage";
+import { AIAPI } from "./api/ai/AIAPI";
+import { IAIAPI } from "./api/ai/IAIAPI";
+import { AISupportPage } from "./pages/AISupportPage";
 
 const auth_api: IAuthAPI = new AuthAPI();
 const user_api: IUserAPI = new UserAPI();
@@ -34,6 +37,7 @@ const ad_api: IAdAPI = new AdAPI();
 const transaction_api: ITransactionAPI = new TransactionAPI();
 const chat_api: IChatAPI = new ChatAPI();
 const audit_api: IAuditAPI = new AuditAPI();
+const ai_api: IAIAPI = new AIAPI();
 
 function App() {
   return (
@@ -92,6 +96,14 @@ function App() {
           element={
             <ProtectedRoute requiredRole="admin,manager,user">
               <ChatPage userAPI={user_api} chatAPI={chat_api} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/ai-support"
+          element={
+            <ProtectedRoute requiredRole="admin,manager,user">
+              <AISupportPage aiAPI={ai_api} userAPI={user_api} />
             </ProtectedRoute>
           }
         />

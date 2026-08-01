@@ -28,6 +28,10 @@ import { MessageDTO } from "../DTOs/MessageDTO";
 import { GetAuditLogsQueryDTO } from "../DTOs/GetAuditLogsQueryDTO";
 import { PaginatedAuditLogsDTO } from "../DTOs/PaginatedAuditLogsDTO";
 import { AuthResponseType } from "../types/AuthResponse";
+import { AIChatRequestDTO } from "../DTOs/AIChatRequestDTO";
+import { AIChatResponseDTO } from "../DTOs/AIChatResponseDTO";
+import { AIHealthDTO } from "../DTOs/AIHealthDTO";
+import { AIConversationDTO, AIMessageDTO } from "../DTOs/AIHistoryDTO";
 
 export interface IGatewayService {
   // Auth
@@ -74,6 +78,14 @@ export interface IGatewayService {
   getMessages(conversationId: string, userId: string): Promise<MessageDTO[]>;
   sendMessage(conversationId: string, userId: string, data: CreateMessageDTO): Promise<MessageDTO>;
   markConversationAsRead(conversationId: string, userId: string): Promise<void>;
+
+  // AI support
+  getAIHealth(): Promise<AIHealthDTO>;
+  askAI(userId: string, data: AIChatRequestDTO): Promise<AIChatResponseDTO>;
+  streamAI(userId: string, data: AIChatRequestDTO): Promise<NodeJS.ReadableStream>;
+  getAIConversations(userId: string): Promise<AIConversationDTO[]>;
+  getAIMessages(userId: string, conversationId: string): Promise<AIMessageDTO[]>;
+  saveAIFeedback(userId: string, messageId: string, helpful: boolean, comment?: string): Promise<void>;
 
   // Audit
   getAuditLogs(query: GetAuditLogsQueryDTO): Promise<PaginatedAuditLogsDTO>;

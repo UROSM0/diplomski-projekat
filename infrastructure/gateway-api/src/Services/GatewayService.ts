@@ -34,6 +34,10 @@ import { CreateAuditLogDTO } from "../Domain/DTOs/CreateAuditLogDTO";
 import { GetAuditLogsQueryDTO } from "../Domain/DTOs/GetAuditLogsQueryDTO";
 import { PaginatedAuditLogsDTO } from "../Domain/DTOs/PaginatedAuditLogsDTO";
 import { chatRealtime } from "../Realtime/ChatRealtime";
+import { AIChatRequestDTO } from "../Domain/DTOs/AIChatRequestDTO";
+import { AIChatResponseDTO } from "../Domain/DTOs/AIChatResponseDTO";
+import { AIConversationDTO, AIMessageDTO } from "../Domain/DTOs/AIHistoryDTO";
+import { AIHealthDTO } from "../Domain/DTOs/AIHealthDTO";
 
 export class GatewayService implements IGatewayService {
   private readonly authClient: AxiosInstance;
@@ -42,6 +46,7 @@ export class GatewayService implements IGatewayService {
   private readonly transactionClient: AxiosInstance;
   private readonly chatClient: AxiosInstance;
   private readonly auditClient: AxiosInstance;
+  private readonly aiSupportClient: AxiosInstance;
 
   constructor() {
     const authBaseURL = process.env.AUTH_SERVICE_URL ?? process.env.AUTH_SERVICE_API;
@@ -50,6 +55,7 @@ export class GatewayService implements IGatewayService {
     const transactionBaseURL = process.env.TRANSACTION_SERVICE_URL ?? process.env.TRANSACTION_SERVICE_API;
     const chatBaseURL = process.env.CHAT_SERVICE_URL ?? process.env.CHAT_SERVICE_API;
     const auditBaseURL = process.env.AUDIT_SERVICE_URL ?? process.env.AUDIT_SERVICE_API;
+    const aiSupportBaseURL = process.env.AI_SUPPORT_SERVICE_URL ?? "http://localhost:5007/api/v1";
 
     this.authClient = axios.create({
       baseURL: authBaseURL,
@@ -85,6 +91,12 @@ export class GatewayService implements IGatewayService {
       baseURL: auditBaseURL,
       headers: { "Content-Type": "application/json" },
       timeout: 5000,
+    });
+
+    this.aiSupportClient = axios.create({
+      baseURL: aiSupportBaseURL,
+      headers: { "Content-Type": "application/json" },
+      timeout: Number(process.env.AI_SUPPORT_TIMEOUT_MS) || 150000,
     });
   }
 
@@ -489,6 +501,7 @@ export class GatewayService implements IGatewayService {
       description: `Otvoren je razgovor za oglas ${data.adId}.`,
       metadata: { adId: data.adId, conversationId: response.data.id },
     });
+
     chatRealtime.emitToUsers(
       [response.data.participantOneId, response.data.participantTwoId],
       "conversation:updated",
@@ -550,6 +563,100 @@ export class GatewayService implements IGatewayService {
       "conversation:read",
       { conversationId, readByUserId: userId }
     );
+  }
+
+  async getAIHealth(): Promise<AIHealthDTO> {
+    try {
+      const response = await this.aiSupportClient.get<AIHealthDTO>("/ai/health", {
+        validateStatus: (status) => status === 200 || status === 503,
+      });
+      return {
+        status: response.data.status,
+        chatModel: response.data.chatModel,
+        embeddingModel: response.data.embeddingModel,
+      };
+    } catch (error) {
+      throw this.toServiceError(error, "AI support is currently unavailable.");
+    }
+  }
+
+  async askAI(userId: string, data: AIChatRequestDTO): Promise<AIChatResponseDTO> {
+    const question = data.question?.trim();
+    const maxQuestionLength = Number(process.env.AI_MAX_QUESTION_LENGTH) || 1000;
+    if (!question) throw new Error("Question is required.");
+    if (question.length > maxQuestionLength) {
+      throw new Error(`Question cannot exceed ${maxQuestionLength} characters.`);
+    }
+
+    const user = await this.getUserById(userId);
+    if (user.status?.toUpperCase() !== "ACTIVE") {
+      throw new Error("Your account is not active.");
+    }
+
+    try {
+      const response = await this.aiSupportClient.post<AIChatResponseDTO>("/ai/chat", { question });
+      await this.logAudit({
+        userId,
+        action: "ask_ai_support",
+        service: "gateway/ai-support",
+        description: "Korisnik je postavio pitanje AI podrsci.",
+        metadata: {
+          questionLength: question.length,
+          model: response.data.model,
+          sourceIds: response.data.sources?.map((source) => source.id) ?? [],
+        },
+      });
+      return response.data;
+    } catch (error) {
+      throw this.toServiceError(error, "AI support request failed.");
+    }
+  }
+
+  async streamAI(userId: string, data: AIChatRequestDTO): Promise<NodeJS.ReadableStream> {
+    const question = data.question?.trim();
+    const maxQuestionLength = Number(process.env.AI_MAX_QUESTION_LENGTH) || 1000;
+    if (!question) throw new Error("Question is required.");
+    if (question.length > maxQuestionLength) throw new Error(`Question cannot exceed ${maxQuestionLength} characters.`);
+    const user = await this.getUserById(userId);
+    if (user.status?.toUpperCase() !== "ACTIVE") throw new Error("Your account is not active.");
+
+    try {
+      const response = await this.aiSupportClient.post<NodeJS.ReadableStream>(
+        "/ai/chat/stream",
+        { question, conversationId: data.conversationId, userId },
+        { responseType: "stream" }
+      );
+      await this.logAudit({
+        userId,
+        action: "ask_ai_support",
+        service: "gateway/ai-support",
+        description: "Korisnik je postavio pitanje AI podrsci putem streaming odgovora.",
+        metadata: { questionLength: question.length, streaming: true },
+      });
+      return response.data;
+    } catch (error) {
+      throw this.toServiceError(error, "AI support request failed.");
+    }
+  }
+
+  async getAIConversations(userId: string): Promise<AIConversationDTO[]> {
+    try {
+      const response = await this.aiSupportClient.get<AIConversationDTO[]>(`/ai/users/${userId}/conversations`);
+      return response.data;
+    } catch (error) { throw this.toServiceError(error, "AI conversation history is unavailable."); }
+  }
+
+  async getAIMessages(userId: string, conversationId: string): Promise<AIMessageDTO[]> {
+    try {
+      const response = await this.aiSupportClient.get<AIMessageDTO[]>(`/ai/conversations/${conversationId}/messages`, { params: { userId } });
+      return response.data;
+    } catch (error) { throw this.toServiceError(error, "AI conversation history is unavailable."); }
+  }
+
+  async saveAIFeedback(userId: string, messageId: string, helpful: boolean, comment?: string): Promise<void> {
+    try {
+      await this.aiSupportClient.post(`/ai/messages/${messageId}/feedback`, { userId, helpful, comment });
+    } catch (error) { throw this.toServiceError(error, "AI feedback could not be saved."); }
   }
 
   async getAuditLogs(query: GetAuditLogsQueryDTO): Promise<PaginatedAuditLogsDTO> {
