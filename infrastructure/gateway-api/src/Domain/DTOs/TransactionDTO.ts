@@ -10,5 +10,5 @@ export interface TransactionDTO {
   amount: number;
   status: string;
   createdAt: string;
-  rating: RatingDTO | null;
+  ratings: RatingDTO[];
 }

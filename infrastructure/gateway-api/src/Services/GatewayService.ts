@@ -449,20 +449,23 @@ export class GatewayService implements IGatewayService {
     return response.data;
   }
 
-  async rateTransaction(transactionId: string, buyerId: string, data: CreateRatingDTO): Promise<TransactionDTO> {
+  async rateTransaction(transactionId: string, reviewerId: string, data: CreateRatingDTO): Promise<TransactionDTO> {
     try {
       const response = await this.transactionClient.post<TransactionDTO>(`/transactions/${transactionId}/rating`, {
         ...data,
-        buyerId,
+        reviewerId,
       });
       await this.logAudit({
-        userId: buyerId,
+        userId: reviewerId,
         action: "rate_transaction",
         service: "gateway/transaction",
         description: `Korisnik je ocenio transakciju ${transactionId}.`,
         metadata: { transactionId, score: data.score },
       });
-      await this.createNotification(response.data.sellerId, {
+      const revieweeId = response.data.buyerId === reviewerId
+        ? response.data.sellerId
+        : response.data.buyerId;
+      await this.createNotification(revieweeId, {
         type: "NEW_RATING",
         title: "Stigla je nova ocena",
         content: `Dobili ste ocenu ${data.score}/5 za oglas "${response.data.adTitle}".`,

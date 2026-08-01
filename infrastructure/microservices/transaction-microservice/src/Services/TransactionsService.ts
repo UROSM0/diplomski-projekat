@@ -39,8 +39,8 @@ type InternalAdDTO = {
   } | null;
 };
 
-type TransactionWithRating = Transaction & {
-  rating: Rating | null;
+type TransactionWithRatings = Transaction & {
+  ratings: Rating[];
 };
 
 export class TransactionsService implements ITransactionsService {
@@ -72,7 +72,7 @@ export class TransactionsService implements ITransactionsService {
 
     const existingTransaction = await this.prisma.transaction.findUnique({
       where: { adId: data.adId },
-      include: { rating: true },
+      include: { ratings: true },
     });
 
     if (existingTransaction) {
@@ -104,40 +104,65 @@ export class TransactionsService implements ITransactionsService {
       throw new Error("Insufficient wallet balance.");
     }
 
-    await this.adjustUserBalance(buyerId, -amount);
+    let buyerDebited = false;
+    let sellerCredited = false;
+    let createdTransactionId: string | undefined;
 
     try {
+      await this.adjustUserBalance(buyerId, -amount);
+      buyerDebited = true;
+
       await this.adjustUserBalance(seller.id, amount);
+      sellerCredited = true;
 
-      try {
-        const transaction = await this.prisma.transaction.create({
-          data: {
-            adId: ad.id,
-            adTitle: ad.title,
-            adImageUrl: ad.imageUrls[0] || null,
-            buyerId,
-            sellerId: seller.id,
-            amount,
-          },
-          include: { rating: true },
-        });
+      const transaction = await this.prisma.transaction.create({
+        data: {
+          adId: ad.id,
+          adTitle: ad.title,
+          adImageUrl: ad.imageUrls[0] || null,
+          buyerId,
+          sellerId: seller.id,
+          amount,
+        },
+        include: { ratings: true },
+      });
+      createdTransactionId = transaction.id;
 
-        try {
-          await this.updateAdStatus(ad.id, "SOLD");
-          return this.toTransactionDTO(transaction);
-        } catch (error) {
-          await this.prisma.transaction.delete({ where: { id: transaction.id } }).catch(() => undefined);
-          await this.adjustUserBalance(seller.id, -amount).catch(() => undefined);
-          await this.adjustUserBalance(buyerId, amount).catch(() => undefined);
-          throw error;
-        }
-      } catch (error) {
-        await this.adjustUserBalance(seller.id, -amount).catch(() => undefined);
-        await this.adjustUserBalance(buyerId, amount).catch(() => undefined);
-        throw error;
-      }
+      await this.updateAdStatus(ad.id, "SOLD");
+      return this.toTransactionDTO(transaction);
     } catch (error) {
-      await this.adjustUserBalance(buyerId, amount).catch(() => undefined);
+      const compensationErrors: string[] = [];
+
+      if (createdTransactionId) {
+        try {
+          await this.prisma.transaction.delete({ where: { id: createdTransactionId } });
+        } catch (compensationError) {
+          compensationErrors.push(`transaction cleanup failed: ${this.getErrorMessage(compensationError)}`);
+        }
+      }
+
+      if (sellerCredited) {
+        try {
+          await this.adjustUserBalance(seller.id, -amount);
+        } catch (compensationError) {
+          compensationErrors.push(`seller balance rollback failed: ${this.getErrorMessage(compensationError)}`);
+        }
+      }
+
+      if (buyerDebited) {
+        try {
+          await this.adjustUserBalance(buyerId, amount);
+        } catch (compensationError) {
+          compensationErrors.push(`buyer balance rollback failed: ${this.getErrorMessage(compensationError)}`);
+        }
+      }
+
+      if (compensationErrors.length > 0) {
+        throw new Error(
+          `${this.getErrorMessage(error)} Compensation was incomplete: ${compensationErrors.join("; ")}`
+        );
+      }
+
       throw error;
     }
   }
@@ -145,7 +170,7 @@ export class TransactionsService implements ITransactionsService {
   async getPurchases(buyerId: string): Promise<TransactionDTO[]> {
     const transactions = await this.prisma.transaction.findMany({
       where: { buyerId },
-      include: { rating: true },
+      include: { ratings: true },
       orderBy: { createdAt: "desc" },
     });
 
@@ -155,20 +180,20 @@ export class TransactionsService implements ITransactionsService {
   async getSales(sellerId: string): Promise<TransactionDTO[]> {
     const transactions = await this.prisma.transaction.findMany({
       where: { sellerId },
-      include: { rating: true },
+      include: { ratings: true },
       orderBy: { createdAt: "desc" },
     });
 
     return transactions.map((transaction) => this.toTransactionDTO(transaction));
   }
 
-  async rateTransaction(transactionId: string, buyerId: string, data: CreateRatingDTO): Promise<TransactionDTO> {
+  async rateTransaction(transactionId: string, reviewerId: string, data: CreateRatingDTO): Promise<TransactionDTO> {
     if (!transactionId?.trim()) {
       throw new Error("Transaction id is required.");
     }
 
-    if (!buyerId?.trim()) {
-      throw new Error("Buyer id is required.");
+    if (!reviewerId?.trim()) {
+      throw new Error("Reviewer id is required.");
     }
 
     if (!Number.isInteger(data.score) || data.score < 1 || data.score > 5) {
@@ -177,34 +202,35 @@ export class TransactionsService implements ITransactionsService {
 
     const transaction = await this.prisma.transaction.findUnique({
       where: { id: transactionId },
-      include: { rating: true },
+      include: { ratings: true },
     });
 
     if (!transaction) {
       throw new Error("Transaction not found.");
     }
 
-    if (transaction.buyerId !== buyerId) {
-      throw new Error("Only the buyer can rate this transaction.");
+    if (transaction.buyerId !== reviewerId && transaction.sellerId !== reviewerId) {
+      throw new Error("Only transaction participants can rate this transaction.");
     }
 
-    if (transaction.rating) {
-      throw new Error("This transaction has already been rated.");
+    if (transaction.ratings.some((rating) => rating.reviewerId === reviewerId)) {
+      throw new Error("You have already rated this transaction.");
     }
 
+    const revieweeId = transaction.buyerId === reviewerId ? transaction.sellerId : transaction.buyerId;
     const updatedTransaction = await this.prisma.transaction.update({
       where: { id: transactionId },
       data: {
-        rating: {
+        ratings: {
           create: {
-            reviewerId: buyerId,
-            revieweeId: transaction.sellerId,
+            reviewerId,
+            revieweeId,
             score: data.score,
             comment: data.comment?.trim() || null,
           },
         },
       },
-      include: { rating: true },
+      include: { ratings: true },
     });
 
     return this.toTransactionDTO(updatedTransaction);
@@ -234,7 +260,11 @@ export class TransactionsService implements ITransactionsService {
     return response.data;
   }
 
-  private toTransactionDTO(transaction: TransactionWithRating): TransactionDTO {
+  private getErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
+  }
+
+  private toTransactionDTO(transaction: TransactionWithRatings): TransactionDTO {
     return {
       id: transaction.id,
       adId: transaction.adId,
@@ -245,7 +275,7 @@ export class TransactionsService implements ITransactionsService {
       amount: Number(transaction.amount),
       status: transaction.status,
       createdAt: transaction.createdAt.toISOString(),
-      rating: transaction.rating ? this.toRatingDTO(transaction.rating) : null,
+      ratings: transaction.ratings.map((rating) => this.toRatingDTO(rating)),
     };
   }
 

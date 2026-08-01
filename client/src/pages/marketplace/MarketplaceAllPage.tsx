@@ -22,10 +22,19 @@ export const MarketplaceAllPage: React.FC<MarketplaceAllPageProps> = ({ adAPI, u
   const [filters, setFilters] = useState({
     search: "",
     categoryId: "",
+    minPrice: "",
+    maxPrice: "",
+    dateFrom: "",
+    dateTo: "",
   });
   const [isLoadingPublicAds, setIsLoadingPublicAds] = useState(true);
   const [isLoadingFavorites, setIsLoadingFavorites] = useState(true);
   const [pageError, setPageError] = useState("");
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
+
+  const advancedFilterCount = [filters.minPrice, filters.maxPrice, filters.dateFrom, filters.dateTo].filter(
+    Boolean
+  ).length;
 
   const categoryMap = useMemo(
     () =>
@@ -57,6 +66,10 @@ export const MarketplaceAllPage: React.FC<MarketplaceAllPageProps> = ({ adAPI, u
         const response = await adAPI.getPublicAds({
           search: filters.search || undefined,
           categoryId: filters.categoryId || undefined,
+          minPrice: filters.minPrice ? Number(filters.minPrice) : undefined,
+          maxPrice: filters.maxPrice ? Number(filters.maxPrice) : undefined,
+          dateFrom: filters.dateFrom || undefined,
+          dateTo: filters.dateTo || undefined,
           page: 1,
           limit: 12,
         });
@@ -69,7 +82,15 @@ export const MarketplaceAllPage: React.FC<MarketplaceAllPageProps> = ({ adAPI, u
     };
 
     void loadPublicAds();
-  }, [adAPI, filters.categoryId, filters.search]);
+  }, [
+    adAPI,
+    filters.categoryId,
+    filters.dateFrom,
+    filters.dateTo,
+    filters.maxPrice,
+    filters.minPrice,
+    filters.search,
+  ]);
 
   useEffect(() => {
     const loadFavorites = async () => {
@@ -122,17 +143,15 @@ export const MarketplaceAllPage: React.FC<MarketplaceAllPageProps> = ({ adAPI, u
         </section>
       ) : null}
 
-      <section
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(280px, 360px) minmax(0, 1fr)",
-          gap: "16px",
-          marginBottom: "24px",
-        }}
-      >
-        <article className="card">
-          <h3>Pretraga oglasa</h3>
-          <div className="flex flex-col gap-3">
+      <section className="card" style={{ marginBottom: "16px", padding: "14px 16px" }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "minmax(220px, 1fr) minmax(170px, 240px) auto auto",
+            gap: "10px",
+            alignItems: "center",
+          }}
+        >
             <input
               type="search"
               placeholder="Pretrazi po nazivu ili opisu"
@@ -160,44 +179,97 @@ export const MarketplaceAllPage: React.FC<MarketplaceAllPageProps> = ({ adAPI, u
                 </option>
               ))}
             </select>
-          </div>
-        </article>
+            <button
+              className={showAdvancedFilters || advancedFilterCount ? "btn btn-standard" : "btn btn-ghost"}
+              type="button"
+              onClick={() => setShowAdvancedFilters((current) => !current)}
+            >
+              Jos filtera{advancedFilterCount ? ` (${advancedFilterCount})` : ""}
+            </button>
+            <button
+              className="btn btn-ghost"
+              type="button"
+              onClick={() => {
+                setFilters({
+                  search: "",
+                  categoryId: "",
+                  minPrice: "",
+                  maxPrice: "",
+                  dateFrom: "",
+                  dateTo: "",
+                });
+                setShowAdvancedFilters(false);
+              }}
+            >
+              Ponisti
+            </button>
+        </div>
 
-        <article className="card">
-          <h3>Pregled oglasa</h3>
+        {showAdvancedFilters ? (
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(160px, 1fr))",
-              gap: "12px",
+              gridTemplateColumns: "repeat(4, minmax(130px, 1fr))",
+              gap: "10px",
+              marginTop: "12px",
+              paddingTop: "12px",
+              borderTop: "1px solid var(--win11-divider)",
             }}
           >
-            <div className="list-item" style={{ cursor: "default" }}>
-              <div>
-                <strong>Kategorije</strong>
-                <p style={{ marginBottom: 0 }}>{categories.length}</p>
-              </div>
-            </div>
-            <div className="list-item" style={{ cursor: "default" }}>
-              <div>
-                <strong>Javni oglasi</strong>
-                <p style={{ marginBottom: 0 }}>{publicAds.length}</p>
-              </div>
-            </div>
-            <div className="list-item" style={{ cursor: "default" }}>
-              <div>
-                <strong>Omiljeni</strong>
-                <p style={{ marginBottom: 0 }}>{isLoadingFavorites ? "..." : favoriteAdIds.length}</p>
-              </div>
-            </div>
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="Cena od"
+              aria-label="Minimalna cena"
+              value={filters.minPrice}
+              onChange={(event) =>
+                setFilters((current) => ({ ...current, minPrice: event.target.value }))
+              }
+            />
+            <input
+              type="number"
+              min="0"
+              step="0.01"
+              placeholder="Cena do"
+              aria-label="Maksimalna cena"
+              value={filters.maxPrice}
+              onChange={(event) =>
+                setFilters((current) => ({ ...current, maxPrice: event.target.value }))
+              }
+            />
+            <label className="flex flex-col gap-2" style={{ fontSize: "12px" }}>
+              <span>Datum od</span>
+              <input
+                type="date"
+                value={filters.dateFrom}
+                onChange={(event) =>
+                  setFilters((current) => ({ ...current, dateFrom: event.target.value }))
+                }
+              />
+            </label>
+            <label className="flex flex-col gap-2" style={{ fontSize: "12px" }}>
+              <span>Datum do</span>
+              <input
+                type="date"
+                value={filters.dateTo}
+                onChange={(event) =>
+                  setFilters((current) => ({ ...current, dateTo: event.target.value }))
+                }
+              />
+            </label>
           </div>
-        </article>
+        ) : null}
       </section>
 
       <section className="card">
         <div className="flex justify-between gap-4" style={{ alignItems: "center", flexWrap: "wrap" }}>
           <div>
-            <h2 style={{ marginBottom: "8px" }}>Svi oglasi</h2>
+            <h2 style={{ marginBottom: "4px" }}>Svi oglasi</h2>
+            <p style={{ marginBottom: 0, color: "var(--win11-text-tertiary)" }}>
+              {isLoadingPublicAds ? "Ucavanje..." : `${publicAds.length} oglasa`}
+              {token ? ` · ${isLoadingFavorites ? "..." : favoriteAdIds.length} omiljenih` : ""}
+            </p>
           </div>
         </div>
 

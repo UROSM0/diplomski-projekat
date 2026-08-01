@@ -261,21 +261,34 @@ export class UsersService implements IUsersService {
       throw new Error("Balance adjustment amount must be a non-zero number.");
     }
 
-    const existingUser = await this.ensureUserExists(id);
-    const currentBalance = Number(existingUser.balance.toString());
-    const nextBalance = currentBalance + data.amount;
+    if (data.amount < 0) {
+      const debitAmount = Math.abs(data.amount);
+      const result = await this.prisma.user.updateMany({
+        where: {
+          id,
+          balance: {
+            gte: debitAmount,
+          },
+        },
+        data: {
+          balance: {
+            decrement: debitAmount,
+          },
+        },
+      });
 
-    if (nextBalance < 0) {
-      throw new Error("Insufficient balance for this adjustment.");
+      if (result.count === 0) {
+        await this.ensureUserExists(id);
+        throw new Error("Insufficient balance for this adjustment.");
+      }
+
+      return this.toDTO(await this.ensureUserExists(id));
     }
 
+    await this.ensureUserExists(id);
     const updatedUser = await this.prisma.user.update({
       where: { id },
-      data: {
-        balance: {
-          increment: data.amount,
-        },
-      },
+      data: { balance: { increment: data.amount } },
     });
 
     return this.toDTO(updatedUser);

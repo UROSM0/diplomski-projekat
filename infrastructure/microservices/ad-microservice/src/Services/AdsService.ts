@@ -1,6 +1,6 @@
 import fs from "fs";
 import path from "path";
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 import { AdDTO } from "../Domain/DTOs/AdDTO";
 import { CategoryDTO } from "../Domain/DTOs/CategoryDTO";
 import { CreateAdDTO } from "../Domain/DTOs/CreateAdDTO";
@@ -275,8 +275,10 @@ export class AdsService implements IAdsService {
     const page = this.normalizePage(query.page);
     const limit = this.normalizeLimit(query.limit);
     const skip = (page - 1) * limit;
+    const price = this.toPriceFilter(query);
+    const createdAt = this.toCreatedAtFilter(query);
 
-    const where = {
+    const where: Prisma.AdWhereInput = {
       ...(filters.sellerId ? { sellerId: filters.sellerId } : {}),
       ...(filters.status ? { status: filters.status } : {}),
       ...(query.search
@@ -288,6 +290,8 @@ export class AdsService implements IAdsService {
           }
         : {}),
       ...(query.categoryId ? { categoryId: query.categoryId } : {}),
+      ...(price ? { price } : {}),
+      ...(createdAt ? { createdAt } : {}),
     };
 
     const [items, totalItems] = await Promise.all([
@@ -372,6 +376,61 @@ export class AdsService implements IAdsService {
   private normalizeLimit(limit?: number): number {
     if (!limit || !Number.isFinite(limit) || limit < 1) return 10;
     return Math.min(50, Math.floor(limit));
+  }
+
+  private toPriceFilter(query: GetAdsQueryDTO): Prisma.DecimalFilter | undefined {
+    const { minPrice, maxPrice } = query;
+
+    if (minPrice !== undefined && (!Number.isFinite(minPrice) || minPrice < 0)) {
+      throw new Error("Minimum price must be zero or greater.");
+    }
+
+    if (maxPrice !== undefined && (!Number.isFinite(maxPrice) || maxPrice < 0)) {
+      throw new Error("Maximum price must be zero or greater.");
+    }
+
+    if (minPrice !== undefined && maxPrice !== undefined && minPrice > maxPrice) {
+      throw new Error("Minimum price cannot be greater than maximum price.");
+    }
+
+    if (minPrice === undefined && maxPrice === undefined) {
+      return undefined;
+    }
+
+    return {
+      ...(minPrice !== undefined ? { gte: minPrice } : {}),
+      ...(maxPrice !== undefined ? { lte: maxPrice } : {}),
+    };
+  }
+
+  private toCreatedAtFilter(query: GetAdsQueryDTO): Prisma.DateTimeFilter | undefined {
+    const dateFrom = query.dateFrom ? this.parseFilterDate(query.dateFrom, false) : undefined;
+    const dateTo = query.dateTo ? this.parseFilterDate(query.dateTo, true) : undefined;
+
+    if (dateFrom && dateTo && dateFrom > dateTo) {
+      throw new Error("Start date cannot be after end date.");
+    }
+
+    if (!dateFrom && !dateTo) {
+      return undefined;
+    }
+
+    return {
+      ...(dateFrom ? { gte: dateFrom } : {}),
+      ...(dateTo ? { lte: dateTo } : {}),
+    };
+  }
+
+  private parseFilterDate(value: string, endOfDay: boolean): Date {
+    const normalized = value.trim();
+    const dateOnly = /^\d{4}-\d{2}-\d{2}$/.test(normalized);
+    const parsed = new Date(dateOnly ? `${normalized}T${endOfDay ? "23:59:59.999" : "00:00:00.000"}Z` : normalized);
+
+    if (Number.isNaN(parsed.getTime())) {
+      throw new Error("Invalid ad date filter.");
+    }
+
+    return parsed;
   }
 
   private normalizeStatus(status: string): AdStatusValue {

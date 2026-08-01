@@ -36,7 +36,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ authAPI }) => {
 
       if (response.success && response.token && response.refreshToken) {
         login(response.token, response.refreshToken);
-        navigate("/dashboard");
+        navigate("/marketplace/all", { replace: true });
       } else {
         setError(response.message || "Prijava nije uspela. Pokusajte ponovo.");
       }
@@ -49,7 +49,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ authAPI }) => {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate("/dashboard");
+      navigate("/marketplace/all", { replace: true });
     }
   }, [isAuthenticated, navigate]);
 

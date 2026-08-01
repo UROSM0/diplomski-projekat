@@ -7,7 +7,7 @@ import { formatRoleLabel, formatUserDisplayName } from "../../../utils/userDispl
 
 type DashboardNavbarProps = {
   userAPI: IUserAPI;
-  activePage?: "dashboard" | "transactions" | "marketplace" | "chat" | "notifications" | "admin-users" | "audit";
+  activePage?: "dashboard" | "account-management" | "transactions" | "marketplace" | "chat" | "notifications" | "admin-users" | "audit";
 };
 
 export const DashboardNavbar: React.FC<DashboardNavbarProps> = ({
@@ -79,22 +79,28 @@ export const DashboardNavbar: React.FC<DashboardNavbarProps> = ({
 
       <div className="topbar-nav">
         <button
+          className={activePage === "marketplace" ? "btn topbar-link topbar-link-active" : "btn topbar-link"}
+          onClick={() => navigate("/marketplace/all")}
+        >
+          Oglasi
+        </button>
+        <button
           className={activePage === "dashboard" ? "btn topbar-link topbar-link-active" : "btn topbar-link"}
           onClick={() => navigate("/dashboard")}
         >
           Nalog
         </button>
         <button
+          className={activePage === "account-management" ? "btn topbar-link topbar-link-active" : "btn topbar-link"}
+          onClick={() => navigate("/account/manage")}
+        >
+          Podesavanja
+        </button>
+        <button
           className={activePage === "transactions" ? "btn topbar-link topbar-link-active" : "btn topbar-link"}
           onClick={() => navigate("/transactions")}
         >
           Transakcije
-        </button>
-        <button
-          className={activePage === "marketplace" ? "btn topbar-link topbar-link-active" : "btn topbar-link"}
-          onClick={() => navigate("/marketplace/all")}
-        >
-          Oglasi
         </button>
         <button
           className={activePage === "chat" ? "btn topbar-link topbar-link-active" : "btn topbar-link"}

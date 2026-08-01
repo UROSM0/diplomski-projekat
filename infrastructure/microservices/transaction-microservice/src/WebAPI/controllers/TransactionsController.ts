@@ -74,15 +74,15 @@ export class TransactionsController {
   private async rateTransaction(req: Request, res: Response): Promise<void> {
     try {
       const transactionId = this.getSingleValue(req.params.id);
-      const buyerId = this.getSingleValue(req.body?.buyerId);
+      const reviewerId = this.getSingleValue(req.body?.reviewerId);
 
-      if (!transactionId || !buyerId) {
-        res.status(400).json({ message: "Transaction id and buyer id are required." });
+      if (!transactionId || !reviewerId) {
+        res.status(400).json({ message: "Transaction id and reviewer id are required." });
         return;
       }
 
-      const { buyerId: _buyerId, ...payload } = req.body as CreateRatingDTO & { buyerId?: string };
-      const transaction = await this.transactionsService.rateTransaction(transactionId, buyerId, payload);
+      const { reviewerId: _reviewerId, ...payload } = req.body as CreateRatingDTO & { reviewerId?: string };
+      const transaction = await this.transactionsService.rateTransaction(transactionId, reviewerId, payload);
       res.status(200).json(transaction);
     } catch (err) {
       this.logger.log((err as Error).message);

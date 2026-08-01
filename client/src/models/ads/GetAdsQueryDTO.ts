@@ -4,4 +4,8 @@ export interface GetAdsQueryDTO {
   search?: string;
   categoryId?: string;
   status?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  dateFrom?: string;
+  dateTo?: string;
 }

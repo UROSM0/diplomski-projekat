@@ -13,7 +13,7 @@ type TransactionsPageProps = {
 };
 
 export const TransactionsPage: React.FC<TransactionsPageProps> = ({ transactionAPI, userAPI }) => {
-  const { token } = useAuth();
+  const { token, user } = useAuth();
   const [purchaseTransactions, setPurchaseTransactions] = useState<TransactionDTO[]>([]);
   const [saleTransactions, setSaleTransactions] = useState<TransactionDTO[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -41,13 +41,17 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({ transactionA
         setPurchaseTransactions(purchases);
         setSaleTransactions(sales);
         setRatingDrafts(
-          purchases.reduce<Record<string, { score: string; comment: string }>>((drafts, transaction) => {
-            drafts[transaction.id] = {
-              score: transaction.rating?.score?.toString() ?? "5",
-              comment: transaction.rating?.comment ?? "",
-            };
-            return drafts;
-          }, {})
+          [...purchases, ...sales].reduce<Record<string, { score: string; comment: string }>>(
+            (drafts, transaction) => {
+              const ownRating = transaction.ratings.find((rating) => rating.reviewerId === user?.id);
+              drafts[transaction.id] = {
+                score: ownRating?.score.toString() ?? "5",
+                comment: ownRating?.comment ?? "",
+              };
+              return drafts;
+            },
+            {}
+          )
         );
       } catch (error) {
         setPageError(getErrorMessage(error, "Ucavanje transakcija nije uspelo."));
@@ -57,7 +61,7 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({ transactionA
     };
 
     void loadTransactions();
-  }, [token, transactionAPI]);
+  }, [token, transactionAPI, user?.id]);
 
   const handleRatingDraftChange = (
     transactionId: string,
@@ -86,6 +90,9 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({ transactionA
       });
 
       setPurchaseTransactions((current) =>
+        current.map((transaction) => (transaction.id === transactionId ? updatedTransaction : transaction))
+      );
+      setSaleTransactions((current) =>
         current.map((transaction) => (transaction.id === transactionId ? updatedTransaction : transaction))
       );
       setPageMessage("Ocena je uspesno sacuvana.");
@@ -132,7 +139,10 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({ transactionA
                 <h2 style={{ marginBottom: "8px" }}>Moje kupovine</h2>
                 {purchaseTransactions.length ? (
                   <div className="flex flex-col gap-4">
-                    {purchaseTransactions.map((transaction) => (
+                    {purchaseTransactions.map((transaction) => {
+                      const ownRating = transaction.ratings.find((rating) => rating.reviewerId === user?.id);
+                      const receivedRating = transaction.ratings.find((rating) => rating.revieweeId === user?.id);
+                      return (
                       <div
                         key={transaction.id}
                         className="card"
@@ -161,10 +171,16 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({ transactionA
                           </div>
                         </div>
 
-                        {transaction.rating ? (
+                        <p>
+                          {receivedRating
+                            ? `Prodavac je ostavio ocenu ${receivedRating.score}/5${receivedRating.comment ? ` - ${receivedRating.comment}` : ""}`
+                            : "Prodavac jos nije ostavio ocenu."}
+                        </p>
+
+                        {ownRating ? (
                           <p style={{ marginBottom: 0 }}>
-                            Tvoja ocena: <strong>{transaction.rating.score}/5</strong>
-                            {transaction.rating.comment ? ` - ${transaction.rating.comment}` : ""}
+                            Tvoja ocena prodavca: <strong>{ownRating.score}/5</strong>
+                            {ownRating.comment ? ` - ${ownRating.comment}` : ""}
                           </p>
                         ) : (
                           <div className="flex flex-col gap-3">
@@ -197,7 +213,8 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({ transactionA
                           </div>
                         )}
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <p style={{ marginBottom: 0 }}>Jos nemas nijednu kupovinu.</p>
@@ -208,7 +225,10 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({ transactionA
                 <h2 style={{ marginBottom: "8px" }}>Moje prodaje</h2>
                 {saleTransactions.length ? (
                   <div className="flex flex-col gap-4">
-                    {saleTransactions.map((transaction) => (
+                    {saleTransactions.map((transaction) => {
+                      const ownRating = transaction.ratings.find((rating) => rating.reviewerId === user?.id);
+                      const receivedRating = transaction.ratings.find((rating) => rating.revieweeId === user?.id);
+                      return (
                       <div
                         key={transaction.id}
                         className="card"
@@ -236,13 +256,49 @@ export const TransactionsPage: React.FC<TransactionsPageProps> = ({ transactionA
                             </p>
                           </div>
                         </div>
-                        <p style={{ marginBottom: 0 }}>
-                          {transaction.rating
-                            ? `Kupac je ostavio ocenu ${transaction.rating.score}/5${transaction.rating.comment ? ` - ${transaction.rating.comment}` : ""}`
+                        <p>
+                          {receivedRating
+                            ? `Kupac je ostavio ocenu ${receivedRating.score}/5${receivedRating.comment ? ` - ${receivedRating.comment}` : ""}`
                             : "Kupac jos nije ostavio ocenu."}
                         </p>
+                        {ownRating ? (
+                          <p style={{ marginBottom: 0 }}>
+                            Tvoja ocena kupca: <strong>{ownRating.score}/5</strong>
+                            {ownRating.comment ? ` - ${ownRating.comment}` : ""}
+                          </p>
+                        ) : (
+                          <div className="flex flex-col gap-3">
+                            <select
+                              value={ratingDrafts[transaction.id]?.score ?? "5"}
+                              onChange={(event) =>
+                                handleRatingDraftChange(transaction.id, "score", event.target.value)
+                              }
+                            >
+                              <option value="5">5</option>
+                              <option value="4">4</option>
+                              <option value="3">3</option>
+                              <option value="2">2</option>
+                              <option value="1">1</option>
+                            </select>
+                            <textarea
+                              placeholder="Dodaj komentar o kupcu"
+                              value={ratingDrafts[transaction.id]?.comment ?? ""}
+                              onChange={(event) =>
+                                handleRatingDraftChange(transaction.id, "comment", event.target.value)
+                              }
+                            />
+                            <button
+                              className="btn btn-accent"
+                              type="button"
+                              onClick={() => void handleCreateRating(transaction.id)}
+                            >
+                              Sacuvaj ocenu kupca
+                            </button>
+                          </div>
+                        )}
                       </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 ) : (
                   <p style={{ marginBottom: 0 }}>Jos nemas nijednu prodaju.</p>

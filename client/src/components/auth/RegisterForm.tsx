@@ -59,7 +59,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ authAPI }) => {
         if (response.token && response.refreshToken) {
           login(response.token, response.refreshToken);
           setTimeout(() => {
-            navigate("/dashboard");
+            navigate("/marketplace/all", { replace: true });
           }, 1500);
         }
       } else {

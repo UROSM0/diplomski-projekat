@@ -548,18 +548,24 @@ export class GatewayController {
         return;
       }
 
-      const transactions = await this.gatewayService.getSales(sellerId);
-      const ratings = transactions
-        .filter((transaction) => transaction.rating)
-        .map((transaction) => ({
-          transactionId: transaction.id,
-          adId: transaction.adId,
-          adTitle: transaction.adTitle,
-          adImageUrl: transaction.adImageUrl,
-          score: transaction.rating!.score,
-          comment: transaction.rating!.comment,
-          createdAt: transaction.rating!.createdAt,
-        }));
+      const [sales, purchases] = await Promise.all([
+        this.gatewayService.getSales(sellerId),
+        this.gatewayService.getPurchases(sellerId),
+      ]);
+      const ratings = [...sales, ...purchases]
+        .flatMap((transaction) =>
+          transaction.ratings
+            .filter((rating) => rating.revieweeId === sellerId)
+            .map((rating) => ({
+              transactionId: transaction.id,
+              adId: transaction.adId,
+              adTitle: transaction.adTitle,
+              adImageUrl: transaction.adImageUrl,
+              score: rating.score,
+              comment: rating.comment,
+              createdAt: rating.createdAt,
+            }))
+        );
 
       res.status(200).json(ratings);
     } catch (err) {
@@ -704,6 +710,10 @@ export class GatewayController {
       search: this.getSingleValue(req.query.search),
       categoryId: this.getSingleValue(req.query.categoryId),
       status: this.getSingleValue(req.query.status),
+      minPrice: this.toNumber(req.query.minPrice),
+      maxPrice: this.toNumber(req.query.maxPrice),
+      dateFrom: this.getSingleValue(req.query.dateFrom),
+      dateTo: this.getSingleValue(req.query.dateTo),
     };
   }
 

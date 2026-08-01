@@ -66,7 +66,7 @@ export interface IGatewayService {
   purchaseAd(buyerId: string, data: PurchaseTransactionDTO): Promise<TransactionDTO>;
   getPurchases(userId: string): Promise<TransactionDTO[]>;
   getSales(userId: string): Promise<TransactionDTO[]>;
-  rateTransaction(transactionId: string, buyerId: string, data: CreateRatingDTO): Promise<TransactionDTO>;
+  rateTransaction(transactionId: string, reviewerId: string, data: CreateRatingDTO): Promise<TransactionDTO>;
 
   // Chat
   createOrGetConversation(userId: string, data: CreateConversationDTO): Promise<ConversationDTO>;

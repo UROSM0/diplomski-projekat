@@ -223,6 +223,10 @@ export class AdsController {
       search: this.getSingleQuery(req.query.search),
       categoryId: this.getSingleQuery(req.query.categoryId),
       status: this.getSingleQuery(req.query.status),
+      minPrice: this.toNumber(req.query.minPrice),
+      maxPrice: this.toNumber(req.query.maxPrice),
+      dateFrom: this.getSingleQuery(req.query.dateFrom),
+      dateTo: this.getSingleQuery(req.query.dateTo),
     };
   }
 

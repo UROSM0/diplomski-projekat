@@ -16,6 +16,7 @@ import { ProtectedRoute } from "./components/protected_route/ProtectedRoute";
 import { AdminUsersPage } from "./pages/AdminUsersPage";
 import { AuditLogsPage } from "./pages/AuditLogsPage";
 import { DashboardPage } from "./pages/DashboardPage";
+import { AccountManagementPage } from "./pages/AccountManagementPage";
 import { ChatPage } from "./pages/ChatPage";
 import { NotificationsPage } from "./pages/NotificationsPage";
 import { TransactionsPage } from "./pages/TransactionsPage";
@@ -43,6 +44,14 @@ function App() {
           element={
             <ProtectedRoute requiredRole="admin,manager,user">
               <DashboardPage userAPI={user_api} />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/account/manage"
+          element={
+            <ProtectedRoute requiredRole="admin,manager,user">
+              <AccountManagementPage userAPI={user_api} />
             </ProtectedRoute>
           }
         />
@@ -114,6 +123,7 @@ function App() {
           <Route path="moderation" element={<MarketplaceModerationPage adAPI={ad_api} userAPI={user_api} />} />
         </Route>
         <Route path="/" element={<AuthPage authAPI={auth_api} />} />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </>
   );
