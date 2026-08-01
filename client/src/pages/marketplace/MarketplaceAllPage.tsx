@@ -279,7 +279,9 @@ export const MarketplaceAllPage: React.FC<MarketplaceAllPageProps> = ({ adAPI, u
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+              gridTemplateColumns: "repeat(auto-fill, minmax(260px, 320px))",
+              justifyContent: "start",
+              alignItems: "start",
               gap: "16px",
               marginTop: "20px",
             }}
@@ -305,9 +307,10 @@ export const MarketplaceAllPage: React.FC<MarketplaceAllPageProps> = ({ adAPI, u
                         style={{
                           width: "100%",
                           height: "160px",
-                          objectFit: "cover",
+                          objectFit: "contain",
                           borderRadius: "10px",
                           marginBottom: "14px",
+                          background: "var(--win11-surface-subtle)",
                           border: "1px solid var(--win11-divider)",
                         }}
                       />

@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
+import { io } from "socket.io-client";
 import { IChatAPI } from "../api/chat/IChatAPI";
 import { getErrorMessage } from "../api/shared/apiError";
 import { IUserAPI } from "../api/users/IUserAPI";
@@ -15,6 +16,16 @@ type ChatPageProps = {
   userAPI: IUserAPI;
 };
 
+type NewMessageEvent = {
+  message: MessageDTO;
+  conversation: ConversationDTO;
+};
+
+type ConversationReadEvent = {
+  conversationId: string;
+  readByUserId: string;
+};
+
 export const ChatPage: React.FC<ChatPageProps> = ({ chatAPI, userAPI }) => {
   const { conversationId } = useParams<{ conversationId: string }>();
   const { token, user } = useAuth();
@@ -26,6 +37,11 @@ export const ChatPage: React.FC<ChatPageProps> = ({ chatAPI, userAPI }) => {
   const [isLoadingConversations, setIsLoadingConversations] = useState(false);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [pageError, setPageError] = useState("");
+  const selectedConversationIdRef = useRef("");
+
+  useEffect(() => {
+    selectedConversationIdRef.current = selectedConversationId;
+  }, [selectedConversationId]);
 
   useEffect(() => {
     if (conversationId) {
@@ -79,12 +95,78 @@ export const ChatPage: React.FC<ChatPageProps> = ({ chatAPI, userAPI }) => {
     };
 
     void loadMessages();
-    const interval = window.setInterval(() => {
-      void loadMessages();
-    }, 5000);
-
-    return () => window.clearInterval(interval);
   }, [chatAPI, selectedConversationId, token]);
+
+  useEffect(() => {
+    if (!token || !user) {
+      return;
+    }
+
+    const gatewayUrl = import.meta.env.VITE_GATEWAY_URL as string;
+    const socketUrl = import.meta.env.VITE_SOCKET_URL || new URL(gatewayUrl).origin;
+    const socket = io(socketUrl, {
+      auth: { token },
+      transports: ["websocket", "polling"],
+    });
+
+    socket.on("conversation:updated", (conversation: ConversationDTO) => {
+      setConversations((current) => {
+        const exists = current.some((item) => item.id === conversation.id);
+        const next = exists
+          ? current.map((item) => (item.id === conversation.id ? { ...item, ...conversation } : item))
+          : [conversation, ...current];
+        return next.sort((first, second) => Date.parse(second.updatedAt) - Date.parse(first.updatedAt));
+      });
+    });
+
+    socket.on("message:new", ({ message, conversation }: NewMessageEvent) => {
+      const isSelected = selectedConversationIdRef.current === message.conversationId;
+
+      if (isSelected) {
+        setMessages((current) =>
+          current.some((item) => item.id === message.id) ? current : [...current, message]
+        );
+
+        if (message.senderId !== user.id) {
+          void chatAPI.markConversationAsRead(token, message.conversationId);
+        }
+      }
+
+      setConversations((current) => {
+        const existing = current.find((item) => item.id === conversation.id);
+        const unreadCount = message.senderId !== user.id && !isSelected
+          ? (existing?.unreadCount ?? 0) + 1
+          : 0;
+        const updated = { ...existing, ...conversation, lastMessage: message, unreadCount } as ConversationDTO;
+        const next = existing
+          ? current.map((item) => (item.id === conversation.id ? updated : item))
+          : [updated, ...current];
+        return next.sort((first, second) => Date.parse(second.updatedAt) - Date.parse(first.updatedAt));
+      });
+    });
+
+    socket.on("conversation:read", ({ conversationId: readConversationId, readByUserId }: ConversationReadEvent) => {
+      if (selectedConversationIdRef.current === readConversationId) {
+        setMessages((current) =>
+          current.map((message) =>
+            message.senderId !== readByUserId ? { ...message, isRead: true } : message
+          )
+        );
+      }
+
+      if (readByUserId === user.id) {
+        setConversations((current) =>
+          current.map((conversation) =>
+            conversation.id === readConversationId ? { ...conversation, unreadCount: 0 } : conversation
+          )
+        );
+      }
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [chatAPI, token, user]);
 
   useEffect(() => {
     const loadParticipantDirectory = async () => {
@@ -139,9 +221,9 @@ export const ChatPage: React.FC<ChatPageProps> = ({ chatAPI, userAPI }) => {
 
     try {
       const message = await chatAPI.sendMessage(token, selectedConversationId, { content });
-      setMessages((current) => [...current, message]);
-      const loadedConversations = await chatAPI.getConversations(token);
-      setConversations(loadedConversations);
+      setMessages((current) =>
+        current.some((item) => item.id === message.id) ? current : [...current, message]
+      );
     } catch (error) {
       setMessageDraft(content);
       setPageError(getErrorMessage(error, "Slanje poruke nije uspelo."));
@@ -171,9 +253,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({ chatAPI, userAPI }) => {
       <main className="page-main" style={{ maxWidth: "1180px" }}>
         <section className="card page-hero page-hero-tight" style={{ marginBottom: "16px" }}>
           <div className="flex justify-between gap-3" style={{ alignItems: "center", flexWrap: "wrap" }}>
-            <div>
-              <h1>Poruke</h1>
-            </div>
+            <h1>Poruke</h1>
             {pageError ? <p style={{ marginBottom: 0 }}>{pageError}</p> : null}
           </div>
         </section>

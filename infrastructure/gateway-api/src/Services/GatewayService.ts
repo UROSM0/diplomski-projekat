@@ -33,6 +33,7 @@ import { MessageDTO } from "../Domain/DTOs/MessageDTO";
 import { CreateAuditLogDTO } from "../Domain/DTOs/CreateAuditLogDTO";
 import { GetAuditLogsQueryDTO } from "../Domain/DTOs/GetAuditLogsQueryDTO";
 import { PaginatedAuditLogsDTO } from "../Domain/DTOs/PaginatedAuditLogsDTO";
+import { chatRealtime } from "../Realtime/ChatRealtime";
 
 export class GatewayService implements IGatewayService {
   private readonly authClient: AxiosInstance;
@@ -488,6 +489,11 @@ export class GatewayService implements IGatewayService {
       description: `Otvoren je razgovor za oglas ${data.adId}.`,
       metadata: { adId: data.adId, conversationId: response.data.id },
     });
+    chatRealtime.emitToUsers(
+      [response.data.participantOneId, response.data.participantTwoId],
+      "conversation:updated",
+      response.data
+    );
     return response.data;
   }
 
@@ -523,11 +529,27 @@ export class GatewayService implements IGatewayService {
       title: "Stigla je nova poruka",
       content: `Imate novu poruku za oglas "${conversation.adTitle}".`,
     });
+    const updatedConversation: ConversationDTO = {
+      ...conversation,
+      lastMessage: response.data,
+      updatedAt: response.data.createdAt,
+    };
+    chatRealtime.emitToUsers(
+      [conversation.participantOneId, conversation.participantTwoId],
+      "message:new",
+      { message: response.data, conversation: updatedConversation }
+    );
     return response.data;
   }
 
   async markConversationAsRead(conversationId: string, userId: string): Promise<void> {
     await this.chatClient.patch(`/conversations/${conversationId}/read`, { userId });
+    const conversation = await this.getConversationByIdInternal(conversationId, userId);
+    chatRealtime.emitToUsers(
+      [conversation.participantOneId, conversation.participantTwoId],
+      "conversation:read",
+      { conversationId, readByUserId: userId }
+    );
   }
 
   async getAuditLogs(query: GetAuditLogsQueryDTO): Promise<PaginatedAuditLogsDTO> {
