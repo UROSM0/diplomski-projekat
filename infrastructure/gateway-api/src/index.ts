@@ -1,4 +1,3 @@
-console.clear();
 import http from "http";
 import jwt from "jsonwebtoken";
 import { Server } from "socket.io";

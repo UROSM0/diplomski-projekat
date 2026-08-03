@@ -1,0 +1,528 @@
+name: diplomski-projekat
+
+services:
+  client:
+    build:
+      context: ./client
+      target: runtime
+      args:
+        VITE_GATEWAY_URL: http://localhost:5000/api/v1
+        VITE_SOCKET_URL: http://localhost:5000
+    ports:
+      - "5173:80"
+    networks:
+      - backend
+    depends_on:
+      gateway:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  ai-support-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ai_support_db
+    expose:
+      - "5432"
+    volumes:
+      - ai-support-db-data:/var/lib/postgresql/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ai_support_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  ai-support-migrate:
+    build:
+      context: ./infrastructure/microservices/ai-support-microservice
+      target: builder
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@ai-support-db:5432/ai_support_db?schema=public
+    networks:
+      - backend
+    depends_on:
+      ai-support-db:
+        condition: service_healthy
+    command: ["npm", "run", "prisma:push"]
+    restart: "no"
+
+  ai-support-service:
+    build:
+      context: ./infrastructure/microservices/ai-support-microservice
+      target: runtime
+    environment:
+      PORT: 5007
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@ai-support-db:5432/ai_support_db?schema=public
+      CORS_ORIGIN: http://localhost:5000
+      CORS_METHODS: GET,POST,OPTIONS
+      LM_STUDIO_BASE_URL: http://host.docker.internal:1234/v1
+      LM_STUDIO_CHAT_MODEL: qwen3-4b-instruct-2507
+      LM_STUDIO_EMBEDDING_MODEL: text-embedding-nomic-embed-text-v1.5
+      LM_STUDIO_TIMEOUT_MS: 120000
+      AI_MAX_QUESTION_LENGTH: 1000
+      AI_MAX_CONTEXT_LENGTH: 12000
+      AI_MAX_OUTPUT_TOKENS: 350
+      AI_RAG_TOP_K: 4
+      AI_RAG_SCORE_WINDOW: 0.08
+      AI_KNOWLEDGE_INDEX_PATH: /app/data/knowledge-index.json
+      AI_RATE_LIMIT_PER_MINUTE: 5
+      AI_RATE_LIMIT_PER_DAY: 100
+    expose:
+      - "5007"
+    volumes:
+      - ai-knowledge-cache:/app/data
+    networks:
+      - backend
+    depends_on:
+      ai-support-migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:5007/api/v1/ai/knowledge/status').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  gateway:
+    build:
+      context: ./infrastructure/gateway-api
+      target: runtime
+    environment:
+      PORT: 5000
+      CORS_ORIGIN: http://localhost:5173
+      CORS_METHODS: GET,POST,PATCH,DELETE,OPTIONS
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      AUTH_SERVICE_URL: http://auth-service:5001/api/v1
+      USER_SERVICE_URL: http://user-service:5002/api/v1
+      AD_SERVICE_URL: http://ad-service:5003/api/v1
+      TRANSACTION_SERVICE_URL: http://transaction-service:5004/api/v1
+      CHAT_SERVICE_URL: http://chat-service:5005/api/v1
+      AUDIT_SERVICE_URL: http://audit-service:5006/api/v1
+      AI_SUPPORT_SERVICE_URL: http://ai-support-service:5007/api/v1
+      AI_SUPPORT_TIMEOUT_MS: 150000
+      AI_MAX_QUESTION_LENGTH: 1000
+    ports:
+      - "5000:5000"
+    networks:
+      - backend
+    depends_on:
+      ai-support-service:
+        condition: service_started
+      auth-service:
+        condition: service_started
+      user-service:
+        condition: service_started
+      ad-service:
+        condition: service_started
+      transaction-service:
+        condition: service_started
+      chat-service:
+        condition: service_started
+      audit-service:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:5000/api/v1/ads').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  chat-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: chat_db
+    expose:
+      - "5432"
+    volumes:
+      - chat-db-data:/var/lib/postgresql/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d chat_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  chat-migrate:
+    build:
+      context: ./infrastructure/microservices/chat-microservice
+      target: builder
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@chat-db:5432/chat_db?schema=public
+    networks:
+      - backend
+    depends_on:
+      chat-db:
+        condition: service_healthy
+    command: ["npm", "run", "prisma:push"]
+    restart: "no"
+
+  chat-service:
+    build:
+      context: ./infrastructure/microservices/chat-microservice
+      target: runtime
+    environment:
+      PORT: 5005
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@chat-db:5432/chat_db?schema=public
+      CORS_ORIGIN: http://localhost:5000
+      CORS_METHODS: GET,POST,PATCH,DELETE,OPTIONS
+    expose:
+      - "5005"
+    networks:
+      - backend
+    depends_on:
+      chat-migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:5005/api/v1/users/health-check/conversations').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  transaction-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: transaction_db
+    expose:
+      - "5432"
+    volumes:
+      - transaction-db-data:/var/lib/postgresql/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d transaction_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  transaction-migrate:
+    build:
+      context: ./infrastructure/microservices/transaction-microservice
+      target: builder
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@transaction-db:5432/transaction_db?schema=public
+    networks:
+      - backend
+    depends_on:
+      transaction-db:
+        condition: service_healthy
+    command: ["npm", "run", "prisma:push"]
+    restart: "no"
+
+  transaction-service:
+    build:
+      context: ./infrastructure/microservices/transaction-microservice
+      target: runtime
+    environment:
+      PORT: 5004
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@transaction-db:5432/transaction_db?schema=public
+      CORS_ORIGIN: http://localhost:5000
+      CORS_METHODS: GET,POST,PATCH,DELETE,OPTIONS
+      USER_SERVICE_URL: http://user-service:5002/api/v1
+      AD_SERVICE_URL: http://ad-service:5003/api/v1
+    expose:
+      - "5004"
+    networks:
+      - backend
+    depends_on:
+      transaction-migrate:
+        condition: service_completed_successfully
+      user-service:
+        condition: service_started
+      ad-service:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:5004/api/v1/transactions/buyer/health-check').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  ad-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ad_db
+    expose:
+      - "5432"
+    volumes:
+      - ad-db-data:/var/lib/postgresql/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ad_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  ad-migrate:
+    build:
+      context: ./infrastructure/microservices/ad-microservice
+      target: builder
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@ad-db:5432/ad_db?schema=public
+    networks:
+      - backend
+    depends_on:
+      ad-db:
+        condition: service_healthy
+    command: ["npm", "run", "prisma:push"]
+    restart: "no"
+
+  ad-service:
+    build:
+      context: ./infrastructure/microservices/ad-microservice
+      target: runtime
+    environment:
+      PORT: 5003
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@ad-db:5432/ad_db?schema=public
+      CORS_ORIGIN: http://localhost:5000
+      CORS_METHODS: GET,POST,PATCH,DELETE,OPTIONS
+      PUBLIC_BASE_URL: http://localhost:5013
+      MAX_FILE_SIZE_MB: 5
+    ports:
+      - "5013:5003"
+    volumes:
+      - ad-uploads:/app/uploads
+    networks:
+      - backend
+    depends_on:
+      ad-migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:5003/api/v1/categories').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  auth-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: auth_db
+    expose:
+      - "5432"
+    volumes:
+      - auth-db-data:/var/lib/postgresql/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d auth_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  auth-migrate:
+    build:
+      context: ./infrastructure/microservices/auth-microservice
+      target: builder
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@auth-db:5432/auth_db?schema=public
+    networks:
+      - backend
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    command: ["npm", "run", "prisma:push"]
+    restart: "no"
+
+  auth-seed:
+    build:
+      context: ./infrastructure/microservices/auth-microservice
+      target: runtime
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@auth-db:5432/auth_db?schema=public
+      USER_SERVICE_URL: http://user-service:5002/api/v1
+      ADMIN_USERNAME: ${ADMIN_USERNAME}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      ADMIN_FIRST_NAME: ${ADMIN_FIRST_NAME}
+      ADMIN_LAST_NAME: ${ADMIN_LAST_NAME}
+      SALT_ROUNDS: 10
+    networks:
+      - backend
+    depends_on:
+      auth-migrate:
+        condition: service_completed_successfully
+      user-service:
+        condition: service_started
+    command: ["node", "dist/scripts/seedAdmin.js"]
+    restart: "no"
+
+  auth-service:
+    build:
+      context: ./infrastructure/microservices/auth-microservice
+      target: runtime
+    environment:
+      PORT: 5001
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@auth-db:5432/auth_db?schema=public
+      CORS_ORIGIN: http://localhost:5000
+      CORS_METHODS: GET,POST,PATCH,DELETE,OPTIONS
+      JWT_ACCESS_SECRET: ${JWT_ACCESS_SECRET}
+      JWT_REFRESH_SECRET: ${JWT_REFRESH_SECRET}
+      ACCESS_TOKEN_EXPIRES_IN: 15m
+      REFRESH_TOKEN_EXPIRES_IN: 7d
+      REFRESH_TOKEN_EXPIRES_IN_DAYS: 7
+      SALT_ROUNDS: 10
+      USER_SERVICE_URL: http://user-service:5002/api/v1
+    expose:
+      - "5001"
+    networks:
+      - backend
+    depends_on:
+      auth-seed:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:5001/api/v1/auth/login',{method:'POST',headers:{'content-type':'application/json'},body:'{}'}).then(r=>process.exit(r.status<500?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  user-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: user_db
+    expose:
+      - "5432"
+    volumes:
+      - user-db-data:/var/lib/postgresql/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d user_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  user-migrate:
+    build:
+      context: ./infrastructure/microservices/user-microservice
+      target: builder
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@user-db:5432/user_db?schema=public
+    networks:
+      - backend
+    depends_on:
+      user-db:
+        condition: service_healthy
+    command: ["npm", "run", "prisma:push"]
+    restart: "no"
+
+  user-service:
+    build:
+      context: ./infrastructure/microservices/user-microservice
+      target: runtime
+    environment:
+      PORT: 5002
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@user-db:5432/user_db?schema=public
+      CORS_ORIGIN: http://localhost:5000
+      CORS_METHODS: GET,POST,PATCH,DELETE,OPTIONS
+    expose:
+      - "5002"
+    networks:
+      - backend
+    depends_on:
+      user-migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:5002/api/v1/users').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  audit-db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: audit_db
+    expose:
+      - "5432"
+    volumes:
+      - audit-db-data:/var/lib/postgresql/data
+    networks:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d audit_db"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  audit-migrate:
+    build:
+      context: ./infrastructure/microservices/audit-microservice
+      target: builder
+    environment:
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@audit-db:5432/audit_db?schema=public
+    networks:
+      - backend
+    depends_on:
+      audit-db:
+        condition: service_healthy
+    command: ["npm", "run", "prisma:push"]
+    restart: "no"
+
+  audit-service:
+    build:
+      context: ./infrastructure/microservices/audit-microservice
+      target: runtime
+    environment:
+      PORT: 5006
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@audit-db:5432/audit_db?schema=public
+      CORS_ORIGIN: http://localhost:5000
+      CORS_METHODS: GET,POST,PATCH,DELETE,OPTIONS
+    expose:
+      - "5006"
+    networks:
+      - backend
+    depends_on:
+      audit-migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:5006/api/v1/audit/logs?limit=1').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  ai-support-db-data:
+  ai-knowledge-cache:
+  chat-db-data:
+  transaction-db-data:
+  ad-db-data:
+  ad-uploads:
+  auth-db-data:
+  user-db-data:
+  audit-db-data:
+
+networks:
+  backend:
+    driver: bridge

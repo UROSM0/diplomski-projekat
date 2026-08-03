@@ -1,4 +1,3 @@
-console.clear();
 import app from "./app";
 import prisma from "./Prisma/client";
 

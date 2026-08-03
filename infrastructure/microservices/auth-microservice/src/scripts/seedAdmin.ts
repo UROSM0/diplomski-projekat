@@ -73,7 +73,6 @@ async function main(): Promise<void> {
 
   console.log("Admin user is ready.");
   console.log(`Username: ${adminConfig.username}`);
-  console.log(`Password: ${adminConfig.password}`);
 }
 
 async function upsertUserProfile(baseUrl: string, profile: UserProfile): Promise<void> {

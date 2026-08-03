@@ -1,0 +1,8 @@
+node_modules
+dist
+.env
+.git
+.gitignore
+data/knowledge-index.json
+npm-debug.log*
+Dockerfile*
